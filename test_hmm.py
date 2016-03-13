@@ -29,8 +29,56 @@ def hmm_latch(latch_w, latch_P):
 
 
 @pytest.fixture
+def fair_w():
+    return np.array([0.0, 1.0])
+
+
+@pytest.fixture
+def fair_P():
+    return np.array([[0.5, 0.5], [0.5, 0.5]])
+
+
+@pytest.fixture
+def hmm_fair(fair_w, fair_P):
+    return HMMNumpy(fair_w, fair_P)
+
+
+@pytest.fixture
+def hmm_tf_fair(fair_w, fair_P):
+    return HMMTensorflow(fair_w, fair_P)
+
+
+@pytest.fixture
 def hmm_tf_latch(latch_w, latch_P):
     return HMMTensorflow(latch_w, latch_P)
+
+
+def test_hmm_fair_forward_backward(hmm_fair):
+    y = np.array([0, 0, 1, 1])
+    posterior, f, b = hmm_fair.forward_backward(y)
+
+    # if P is filled with 0.5, the only thing that matters is the emission
+    # liklihood.  assert that the posterior is = the liklihood of y
+    for i, yi in enumerate(y):
+        liklihood = hmm_fair.lik(yi) / np.sum(hmm_fair.lik(yi))
+        assert np.isclose(posterior[i,:], liklihood).all()
+
+    # assert that posterior for any given t sums to 1
+    assert np.isclose(np.sum(posterior, 1), 1).all()
+
+
+def test_hmm_fair_forward_backward(hmm_fair):
+    y = np.array([0, 0, 1, 1])
+    posterior, f, b = hmm_fair.forward_backward(y)
+
+    # if P is filled with 0.5, the only thing that matters is the emission
+    # liklihood.  assert that the posterior is = the liklihood of y
+    for i, yi in enumerate(y):
+        liklihood = hmm_fair.lik(yi) / np.sum(hmm_fair.lik(yi))
+        assert np.isclose(posterior[i,:], liklihood).all()
+
+    # assert that posterior for any given t sums to 1
+    assert np.isclose(np.sum(posterior, 1), 1).all()
 
 
 def test_hmm_latch_two_step_no_noise(hmm_latch):

@@ -4,7 +4,7 @@ import numpy as np
 # from hmm import HMM as HMM_Orig
 
 
-class HMMNumpy(object):
+class HMM(object):
     """
     A class for Hidden Markov Models.
 
@@ -24,9 +24,9 @@ class HMMNumpy(object):
     """
 
     def __init__(self, w, P, p0=None):
-        self.w = w
-        assert w.ndim == 1
-        self.K = self.w.shape[0]
+        self.w = np.array(w)
+        assert self.w.ndim == 1
+        self.K = w.shape[0]
 
         if P.shape != (self.K, self.K):
             raise ValueError(
@@ -40,7 +40,8 @@ class HMMNumpy(object):
             self.p0 /= sum(self.p0)
         elif len(p0) != self.K:
             raise ValueError(
-                'dimensions of p0 {} must match w {}'.format(p0.shape, w.shape))
+                'dimensions of p0 {} must match w {}'.format(
+                    p0.shape, w.shape))
         else:
             self.p0 = p0
         self.logp0 = np.log(self.p0)
@@ -48,6 +49,54 @@ class HMMNumpy(object):
     def log_lik(self, y):
         # scale factor ...
         return 2 * -np.abs(y - self.w)
+
+    def lik(self, y):
+        # the output of this will not necessarily sum to 1.  An easy example is
+        # if y is some very unlikely value.  In this case, the sum may be
+        # significantly less than 1
+        return np.exp(self.log_lik(y))
+
+
+class HMMNumpy(HMM):
+
+    def forward_backward(self, y):
+        # set up
+        nT = y.size
+        posterior = np.zeros((nT, self.K))
+        forward = np.zeros((nT + 1, self.K))
+        backward = np.zeros((nT + 1, self.K))
+
+        # forward pass
+        forward[0, :] = 1.0 / self.K
+        for t in xrange(nT):
+            # NOTE: np.matrix expands forward[t, :] into 2d and causes * to be
+            # matrix multiplies instead of element wise that an array would be
+            tmp = np.matrix(forward[t, :]) * self.P * np.diag(self.lik(y[t]))
+            print 'tmp', tmp
+            forward[t + 1, :] = tmp / np.sum(tmp)
+
+        # backward pass
+        backward[-1, :] = 1.0 / self.K
+        for t in xrange(nT, 0, -1):
+            tmp = (
+                np.matrix(self.P) *
+                np.diag(self.lik(y[t - 1])) *
+                np.matrix(backward[t, :]).transpose()
+            ).transpose()
+
+            backward[t - 1, :] = tmp / np.sum(tmp)
+
+        forward = forward[1:,:]
+        backward = backward[:-1,:]
+        # combine and normalize
+        print 'f'
+        print forward
+        print 'b'
+        print backward
+        posterior = np.array(forward) * np.array(backward)
+        posterior = posterior / np.sum(posterior, 1)[:,None]
+
+        return posterior, forward, backward
 
     def _viterbi_partial_forward(self, scores):
         tmpMat = np.zeros((self.K, self.K))
@@ -72,62 +121,19 @@ class HMMNumpy(object):
             tmpMat = self._viterbi_partial_forward(pathScores[t])
 
             # the inferred state
-            pathStates[t+1] = np.argmax(tmpMat, 0)
-            pathScores[t+1] = np.max(tmpMat, 0) + self.log_lik(yy)
+            pathStates[t + 1] = np.argmax(tmpMat, 0)
+            pathScores[t + 1] = np.max(tmpMat, 0) + self.log_lik(yy)
 
         # now backtrack viterbi to find states
         s = np.zeros(nT, dtype=np.int)
         s[-1] = np.argmax(pathScores[-1])
         for t in range(nT - 1, 0, -1):
-            s[t-1] = pathStates[t, s[t]]
+            s[t - 1] = pathStates[t, s[t]]
 
         return s, pathScores
 
 
-class HMMTensorflow(object):
-    """
-    A class for Hidden Markov Models.
-
-    Assumes measurements are Gaussian distributed
-
-    The model attributes are:
-    - K :: the number of states
-    - w :: the K Gaussian output distribution means
-    - sigma :: the K standard deviations of Gaussian output
-    - P :: the K by K transition matrix (from state i to state j,
-        (i, j) in [1..K])
-    - p0 :: the initial distribution (defaults to starting in state 0)
-
-    Notes:
-    - by convention, we specify w[0] as the 'Off' state, although this
-      is not required.
-    """
-
-    def __init__(self, w, P, p0=None):
-        assert w.ndim == 1
-
-        self.w = np.array(w)
-        self.K = w.shape[0]
-
-        if P.shape != (self.K, self.K):
-            raise ValueError(
-                'dimensions of P {} must match w {}'.format(P.shape, self.K)
-            )
-        self.logP = np.log(P)
-
-        if p0 is None:
-            self.p0 = np.ones(self.K)
-            self.p0 /= sum(self.p0)
-        elif len(p0) != self.K:
-            raise ValueError(
-                'dimensions of p0 {} must match w {}'.format(p0.shape, w.shape))
-        else:
-            self.p0 = p0
-        self.logp0 = np.log(self.p0)
-
-    def log_lik(self, y):
-        # scale factor ...
-        return 2 * -np.abs(y - self.w)
+class HMMTensorflow(HMM):
 
     def _viterbi_partial_forward(self, scores):
         # first convert scores into shape [K, 1]
