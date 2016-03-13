@@ -49,7 +49,7 @@ class HMM(object):
         # scale factor ...
         return 2 * -np.abs(y - self.w)
 
-    def _partial_forward(self, scores):
+    def _viterbi_partial_forward(self, scores):
         tmpMat = np.zeros((self.K, self.K))
         for i in range(self.K):
             for j in range(self.K):
@@ -69,7 +69,7 @@ class HMM(object):
 
         for t, yy in enumerate(y[1:]):
             # propagate forward
-            tmpMat = self._partial_forward(pathScores[t])
+            tmpMat = self._viterbi_partial_forward(pathScores[t])
 
             # the inferred state
             pathStates[t+1] = np.argmax(tmpMat, 0)
@@ -129,7 +129,7 @@ class HMMTensorflow(object):
         # scale factor ...
         return 2 * -np.abs(y - self.w)
 
-    def _partial_forward(self, scores):
+    def _viterbi_partial_forward(self, scores):
         # first convert scores into shape [K, 1]
         # then concatenate K of them into shape [K, K]
         expanded_scores = tf.concat(
@@ -151,7 +151,7 @@ class HMMTensorflow(object):
 
         for t, yy in enumerate(y[1:]):
             # propagate forward
-            tmpMat = self._partial_forward(pathScores[t])
+            tmpMat = self._viterbi_partial_forward(pathScores[t])
 
             # the inferred state
             pathStates.append(tf.argmax(tmpMat, 0))
