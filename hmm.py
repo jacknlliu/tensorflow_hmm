@@ -72,7 +72,7 @@ class HMMNumpy(HMM):
             # NOTE: np.matrix expands forward[t, :] into 2d and causes * to be
             # matrix multiplies instead of element wise that an array would be
             tmp = np.matrix(forward[t, :]) * self.P * np.diag(self.lik(y[t]))
-            print 'tmp', tmp
+
             forward[t + 1, :] = tmp / np.sum(tmp)
 
         # backward pass
@@ -86,14 +86,13 @@ class HMMNumpy(HMM):
 
             backward[t - 1, :] = tmp / np.sum(tmp)
 
+        # remove initial/final probabilities
         forward = forward[1:,:]
         backward = backward[:-1,:]
+
         # combine and normalize
-        print 'f'
-        print forward
-        print 'b'
-        print backward
         posterior = np.array(forward) * np.array(backward)
+        # [:,None] expands num to be correct size
         posterior = posterior / np.sum(posterior, 1)[:,None]
 
         return posterior, forward, backward
