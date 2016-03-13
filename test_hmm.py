@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 import tensorflow as tf
 
-from hmm import HMM, HMMTensorflow
+from hmm import HMMNumpy, HMMTensorflow
 
 
 @pytest.fixture
@@ -25,7 +25,7 @@ def latch_w():
 
 @pytest.fixture
 def hmm_latch(latch_w, latch_P):
-    return HMM(latch_w, latch_P)
+    return HMMNumpy(latch_w, latch_P)
 
 
 @pytest.fixture

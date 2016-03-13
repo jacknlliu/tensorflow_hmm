@@ -4,7 +4,7 @@ import numpy as np
 # from hmm import HMM as HMM_Orig
 
 
-class HMM(object):
+class HMMNumpy(object):
     """
     A class for Hidden Markov Models.
 
@@ -216,7 +216,7 @@ if __name__ == "__main__":
     # P = np.array([[0.9999, 0.0001], [0.0, 1.0]])
     w = np.array([0., 1.0])
 
-    hmm = HMM(w, P)
+    hmm = HMMNumpy(w, P)
 
     # y = np.zeros(10)
     # y[4:] += 1.0
@@ -235,7 +235,10 @@ if __name__ == "__main__":
     print outscores
 
     # TODO
-    #   - replace y with direct log_lik?
-    #   - convert to tensorflow
+    #   - replace y with direct log_lik
+    #   X convert to tensorflow
+    #   - more comments
+    #   - extract common functions into base class
+    #   - implement forward-backward
     #   - visualize gradient
     #   - possible that code could be simplified once model is solid ... later
