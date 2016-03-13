@@ -67,20 +67,6 @@ def test_hmm_fair_forward_backward(hmm_fair):
     assert np.isclose(np.sum(posterior, 1), 1).all()
 
 
-def test_hmm_fair_forward_backward(hmm_fair):
-    y = np.array([0, 0, 1, 1])
-    posterior, f, b = hmm_fair.forward_backward(y)
-
-    # if P is filled with 0.5, the only thing that matters is the emission
-    # liklihood.  assert that the posterior is = the liklihood of y
-    for i, yi in enumerate(y):
-        liklihood = hmm_fair.lik(yi) / np.sum(hmm_fair.lik(yi))
-        assert np.isclose(posterior[i,:], liklihood).all()
-
-    # assert that posterior for any given t sums to 1
-    assert np.isclose(np.sum(posterior, 1), 1).all()
-
-
 def test_hmm_latch_two_step_no_noise(hmm_latch):
     for i in range(2):
         for j in range(2):
