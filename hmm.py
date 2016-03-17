@@ -94,7 +94,7 @@ class HMMNumpy(HMM):
 
         # combine and normalize
         posterior = np.array(forward) * np.array(backward)
-        # [:,None] expands num to be correct size
+        # [:,None] expands sum to be correct size
         posterior = posterior / np.sum(posterior, 1)[:,None]
 
         return posterior, forward, backward
