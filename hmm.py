@@ -134,6 +134,49 @@ class HMMNumpy(HMM):
 
 class HMMTensorflow(HMM):
 
+    def forward_backward(self, y):
+        # set up
+        nT = y.size
+        posterior = np.zeros((nT, self.K))
+        forward = []
+        backward = np.zeros((nT + 1, self.K))
+
+        # forward pass
+        forward.append(
+            tf.ones((1, self.K), dtype=tf.float64) * (1.0 / self.K)
+        )
+        for t in xrange(nT):
+            # NOTE: np.matrix expands forward[t, :] into 2d and causes * to be
+            # matrix multiplies instead of element wise that an array would be
+            tmp = tf.mul(
+                tf.matmul(forward[t], self.P),
+                self.lik(y[t])
+            )
+
+            forward.append(tmp / tf.reduce_sum(tmp))
+
+        # backward pass
+        backward = [None] * (nT + 1)
+        backward[-1] = tf.ones((1, self.K), dtype=tf.float64) * (1.0 / self.K)
+        for t in xrange(nT, 0, -1):
+            tmp = tf.transpose(
+                tf.matmul(
+                    tf.matmul(self.P, tf.diag(self.lik(y[t - 1]))),
+                    tf.transpose(backward[t])
+                )
+            )
+            backward[t - 1] = tmp / tf.reduce_sum(tmp)
+
+        # remove initial/final probabilities
+        forward = forward[1:]
+        backward = backward[:-1]
+
+        # combine and normalize
+        posterior = [f * b for f, b in zip(forward, backward)]
+        posterior = [p / tf.reduce_sum(p) for p in posterior]
+
+        return posterior, forward, backward
+
     def _viterbi_partial_forward(self, scores):
         # first convert scores into shape [K, 1]
         # then concatenate K of them into shape [K, K]

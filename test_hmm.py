@@ -53,6 +53,19 @@ def hmm_tf_latch(latch_w, latch_P):
     return HMMTensorflow(latch_w, latch_P)
 
 
+def test_hmm_tf_fair_forward_backward(hmm_tf_fair, hmm_fair):
+    y = np.array([0, 0, 1, 1])
+
+    np_posterior, _, _ = hmm_fair.forward_backward(y)
+    print 'tf'
+    g_posterior, _, _ = hmm_tf_fair.forward_backward(y)
+    tf_posterior = np.concatenate(tf.Session().run(g_posterior))
+
+    print 'np_posterior', np_posterior
+    print 'tf_posterior', tf_posterior
+    assert np.isclose(np_posterior, tf_posterior).all()
+
+
 def test_hmm_fair_forward_backward(hmm_fair):
     y = np.array([0, 0, 1, 1])
     posterior, f, b = hmm_fair.forward_backward(y)
