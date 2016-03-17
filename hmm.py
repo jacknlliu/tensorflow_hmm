@@ -69,9 +69,10 @@ class HMMNumpy(HMM):
         # forward pass
         forward[0, :] = 1.0 / self.K
         for t in xrange(nT):
-            # NOTE: np.matrix expands forward[t, :] into 2d and causes * to be
-            # matrix multiplies instead of element wise that an array would be
-            tmp = np.matrix(forward[t, :]) * self.P * np.diag(self.lik(y[t]))
+            tmp = np.multiply(
+                np.matmul(forward[t, :], self.P),
+                self.lik(y[t])
+            )
 
             forward[t + 1, :] = tmp / np.sum(tmp)
 
