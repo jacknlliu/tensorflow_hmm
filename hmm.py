@@ -79,10 +79,11 @@ class HMMNumpy(HMM):
         # backward pass
         backward[-1, :] = 1.0 / self.K
         for t in xrange(nT, 0, -1):
-            tmp = (
-                np.matrix(self.P) *
-                np.diag(self.lik(y[t - 1])) *
-                np.matrix(backward[t, :]).transpose()
+            tmp = np.matmul(
+                np.matmul(
+                    self.P, np.diag(self.lik(y[t - 1]))
+                ),
+                backward[t, :].transpose()
             ).transpose()
 
             backward[t - 1, :] = tmp / np.sum(tmp)
