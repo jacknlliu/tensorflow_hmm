@@ -105,7 +105,9 @@ def test_hmm_tf_partial_forward(hmm_tf_latch, hmm_latch):
     ]
 
     for scores in scoress:
-        tf_ret = tf.Session().run(hmm_tf_latch._viterbi_partial_forward(scores))
+        tf_ret = tf.Session().run(
+            hmm_tf_latch._viterbi_partial_forward(scores)
+        )
         np_ret = hmm_latch._viterbi_partial_forward(scores)
 
         assert (tf_ret == np_ret).all()
