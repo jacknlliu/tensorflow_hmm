@@ -138,7 +138,11 @@ class HMMTensorflow(HMM):
 
     def forward_backward(self, y):
         # set up
-        nT = y.size
+        if isinstance(y, np.ndarray):
+            nT = y.size
+        else:
+            nT = len(y)
+
         posterior = np.zeros((nT, self.K))
         forward = []
         backward = np.zeros((nT + 1, self.K))
