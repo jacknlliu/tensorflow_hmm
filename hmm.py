@@ -36,15 +36,13 @@ class HMM(object):
             self.p0 = p0
         self.logp0 = np.log(self.p0)
 
-    def log_lik(self, y):
-        # scale factor ...
-        return 2 * -np.abs(y - self.w)
-
     def lik(self, y):
-        # the output of this will not necessarily sum to 1.  An easy example is
-        # if y is some very unlikely value.  In this case, the sum may be
-        # significantly less than 1
-        return np.exp(self.log_lik(y))
+        # if y == 0: return [1, 0]
+        # if y == 1: return [0, 1]
+        return y * np.array([0.0, 1.0]) + (1.0 - y) * np.array([1.0, 0.0])
+
+    def log_lik(self, y):
+        return np.log(self.lik(y))
 
 
 class HMMNumpy(HMM):
@@ -125,11 +123,6 @@ class HMMNumpy(HMM):
 
 
 class HMMTensorflow(HMM):
-
-    def lik(self, y):
-        # if y == 0: return [1, 0]
-        # if y == 1: return [0, 1]
-        return y * np.array([0, 1]) + (1 - y) * np.array([1, 0])
 
     def forward_backward(self, y):
         # set up
