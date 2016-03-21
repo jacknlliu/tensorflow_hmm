@@ -1,26 +1,16 @@
 import tensorflow as tf
 import numpy as np
 
-# from hmm import HMM as HMM_Orig
-
 
 class HMM(object):
     """
     A class for Hidden Markov Models.
 
-    Assumes measurements are Gaussian distributed
-
     The model attributes are:
     - K :: the number of states
-    - w :: the K Gaussian output distribution means
-    - sigma :: the K standard deviations of Gaussian output
     - P :: the K by K transition matrix (from state i to state j,
         (i, j) in [1..K])
     - p0 :: the initial distribution (defaults to starting in state 0)
-
-    Notes:
-    - by convention, we specify w[0] as the 'Off' state, although this
-      is not required.
     """
 
     def __init__(self, w, P, p0=None):
@@ -136,6 +126,11 @@ class HMMNumpy(HMM):
 
 class HMMTensorflow(HMM):
 
+    def lik(self, y):
+        # if y == 0: return [1, 0]
+        # if y == 1: return [0, 1]
+        return y * np.array([0, 1]) + (1 - y) * np.array([1, 0])
+
     def forward_backward(self, y):
         # set up
         if isinstance(y, np.ndarray):
@@ -218,81 +213,3 @@ class HMMTensorflow(HMM):
             s[t - 1] = tf.gather(pathStates[t], s[t])
 
         return s, pathScores
-
-
-def gradient_hmm():
-    # P = np.array([[0.5, 0.5], [0.0000000000001, 0.9999999999999]])
-    P = np.array([[0.5, 0.5], [0.0, 1.0]])
-    # P = np.array([[0.9999, 0.0001], [0.0, 1.0]])
-    w = np.array([0., 1.0])
-
-    hmm = HMMTensorflow(w, P)
-
-    x = [0, 1, 0, 0, 1, 1, 1, 1, 1]
-    y = [0, 0, 0, 0, 1, 1, 1, 1, 1]
-
-    nT = len(y)
-
-    x = [tf.Variable(e) for e in np.array(x, dtype=np.int64)]
-    y = np.array(y, dtype=np.int64)
-
-    outstates, outscores = hmm.viterbi_decode(y, nT)
-
-    print y
-    print outstates
-    errors = [
-        yi - outstatesi
-        for yi, outstatesi in zip(y, outstates)
-    ]
-
-    error_squared = [
-        tf.square(error) for error in errors
-    ]
-
-    # use python sum since error_squared is a python list of 0d tensors
-    loss = tf.cast(sum(error_squared), tf.float64) / len(error_squared)
-
-    print 'x', x
-    print 'loss', loss
-    print 'gradients'
-    # print tf.gradients(x[0] * 2, x[0])
-    print tf.gradients(outstates, x)
-    print tf.gradients(loss, x)
-
-
-if __name__ == "__main__":
-    gradient_hmm()
-    import sys
-    sys.exit()
-
-    # P = np.array([[0.5, 0.5], [0.0000000000001, 0.9999999999999]])
-    P = np.array([[0.5, 0.5], [0.0, 1.0]])
-    # P = np.array([[0.9999, 0.0001], [0.0, 1.0]])
-    w = np.array([0., 1.0])
-
-    hmm = HMMNumpy(w, P)
-
-    # y = np.zeros(10)
-    # y[4:] += 1.0
-    # y += 0.5 * (np.random.random(10) - 0.5)
-    # y[-4:] = 0
-    y = [0, 1, 0, 0, 1, -109, 1, 1, 1]
-
-    # y = np.array([1, 0])
-
-    print ', '.join(['%.02f' % e for e in y])
-
-    outstates, outscores = hmm.viterbi_decode(y)
-    print 'y', y
-    print 'outstates', outstates
-    print 'outscores'
-    print outscores
-
-    # TODO
-    #   - replace y with direct log_lik
-    #   X convert to tensorflow
-    #   - more comments
-    #   - extract common functions into base class
-    #   - implement forward-backward
-    #   - visualize gradient
-    #   - possible that code could be simplified once model is solid ... later
