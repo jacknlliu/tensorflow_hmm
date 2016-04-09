@@ -77,13 +77,13 @@ class HMMNumpy(HMM):
             backward[t - 1, :] = tmp / np.sum(tmp)
 
         # remove initial/final probabilities
-        forward = forward[1:,:]
-        backward = backward[:-1,:]
+        forward = forward[1:, :]
+        backward = backward[:-1, :]
 
         # combine and normalize
         posterior = np.array(forward) * np.array(backward)
         # [:,None] expands sum to be correct size
-        posterior = posterior / np.sum(posterior, 1)[:,None]
+        posterior = posterior / np.sum(posterior, 1)[:, None]
 
         return posterior, forward, backward
 
