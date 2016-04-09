@@ -64,7 +64,7 @@ def test_hmm_fair_forward_backward(hmm_fair):
     # liklihood.  assert that the posterior is = the liklihood of y
     for i, yi in enumerate(y):
         liklihood = hmm_fair.lik(yi) / np.sum(hmm_fair.lik(yi))
-        assert np.isclose(posterior[i,:], liklihood).all()
+        assert np.isclose(posterior[i, :], liklihood).all()
 
     # assert that posterior for any given t sums to 1
     assert np.isclose(np.sum(posterior, 1), 1).all()
