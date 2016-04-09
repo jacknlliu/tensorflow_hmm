@@ -13,15 +13,9 @@ class HMM(object):
     - p0 :: the initial distribution (defaults to starting in state 0)
     """
 
-    def __init__(self, w, P, p0=None):
-        self.w = np.array(w)
-        assert self.w.ndim == 1
-        self.K = w.shape[0]
+    def __init__(self, P, p0=None):
+        self.K = P.shape[0]
 
-        if P.shape != (self.K, self.K):
-            raise ValueError(
-                'dimensions of P {} must match w {}'.
-                format(P.shape, self.K))
         self.P = P
         self.logP = np.log(self.P)
 
@@ -30,8 +24,8 @@ class HMM(object):
             self.p0 /= sum(self.p0)
         elif len(p0) != self.K:
             raise ValueError(
-                'dimensions of p0 {} must match w {}'.format(
-                    p0.shape, w.shape))
+                'dimensions of p0 {} must match P[0] {}'.format(
+                    p0.shape, P.shape[0]))
         else:
             self.p0 = p0
         self.logp0 = np.log(self.p0)

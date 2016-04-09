@@ -19,18 +19,8 @@ def latch_P():
 
 
 @pytest.fixture
-def latch_w():
-    return np.array([0., 1.0])
-
-
-@pytest.fixture
-def hmm_latch(latch_w, latch_P):
-    return HMMNumpy(latch_w, latch_P)
-
-
-@pytest.fixture
-def fair_w():
-    return np.array([0.0, 1.0])
+def hmm_latch(latch_P):
+    return HMMNumpy(latch_P)
 
 
 @pytest.fixture
@@ -39,18 +29,18 @@ def fair_P():
 
 
 @pytest.fixture
-def hmm_fair(fair_w, fair_P):
-    return HMMNumpy(fair_w, fair_P)
+def hmm_fair(fair_P):
+    return HMMNumpy(fair_P)
 
 
 @pytest.fixture
-def hmm_tf_fair(fair_w, fair_P):
-    return HMMTensorflow(fair_w, fair_P)
+def hmm_tf_fair(fair_P):
+    return HMMTensorflow(fair_P)
 
 
 @pytest.fixture
-def hmm_tf_latch(latch_w, latch_P):
-    return HMMTensorflow(latch_w, latch_P)
+def hmm_tf_latch(latch_P):
+    return HMMTensorflow(latch_P)
 
 
 def test_hmm_tf_fair_forward_backward(hmm_tf_fair, hmm_fair):
