@@ -4,9 +4,7 @@ language: python
 matrix:
     include:
         - python: 3.4
-          env: KERAS_BACKEND=tensorflow
         - python: 2.7
-          env: KERAS_BACKEND=tensorflow
 install:
   # code below is taken from http://conda.pydata.org/docs/travis.html
   # We do this conditionally because it saves us some downloading if the
@@ -42,10 +40,6 @@ install:
 # command to run tests
 script:
   # run keras backend init to initialize backend config
-  - py.test .
-  # set up keras backend
-  - sed -i -e 's/"backend":[[:space:]]*"[^"]*/"backend":\ "'$KERAS_BACKEND'/g' ~/.keras/keras.json;
-  - echo -e "Running tests with the following config:\n$(cat ~/.keras/keras.json)"
   - if [[ "$TEST_MODE" == "PEP8" ]]; then
        PYTHONPATH=$PWD:$PYTHONPATH py.test --pep8 -m pep8 -n0;
     else
