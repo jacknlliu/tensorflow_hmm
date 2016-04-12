@@ -111,6 +111,24 @@ class HMMNumpy(HMM):
 class HMMTensorflow(HMM):
 
     def forward_backward(self, y):
+        """
+        runs forward backward algorithm on state probabilities y
+
+        Arguments
+        ---------
+        y : np.array : shape (T, K) where T is number of timesteps and
+            K is the number of states
+
+        Returns
+        -------
+        (posterior, forward, backward)
+        posterior : list of length T of tensorflow graph nodes representing
+            the posterior probability of each state at each time step
+        forward : list of length T of tensorflow graph nodes representing
+            the forward probability of each state at each time step
+        backward : list of length T of tensorflow graph nodes representing
+            the backward probability of each state at each time step
+        """
         # set up
         nT = y.shape[0]
 
@@ -163,6 +181,25 @@ class HMMTensorflow(HMM):
         return expanded_scores + self.logP
 
     def viterbi_decode(self, y, nT):
+        """
+        Runs viterbi decode on state probabilies y.
+
+        Arguments
+        ---------
+        y : np.array : shape (T, K) where T is number of timesteps and
+            K is the number of states
+        nT : int : number of timesteps in y
+
+        Returns
+        -------
+        (s, pathScores)
+        s : list of length T of tensorflow ints : represents the most likely
+            state at each time step.
+        pathScores : list of length T of tensorflow tensor of length K
+            each value at (t, k) is the log likliehood score in state k at
+            time t.  sum(pathScores[t, :]) will not necessary == 1
+        """
+
         # pathStates and pathScores wil be of type tf.Tensor.  They
         # are lists since tensorflow doesn't allow indexing, and the
         # list and order are only really necessary to build the unrolled
