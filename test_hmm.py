@@ -43,8 +43,21 @@ def hmm_tf_latch(latch_P):
     return HMMTensorflow(latch_P)
 
 
+def lik(y):
+    """ given 1d vector of likliehoods length N, return matrix with
+    shape (N, 2) where (N, 0) is 1 - y and (N, 1) is y.
+
+    This makes it easy to convert a time series of probabilities
+    into 2 states, off/on, for a simple HMM.
+    """
+
+    liklihood = np.array([y, y], float).T
+    liklihood[:, 0] = 1 - liklihood[:, 0]
+    return liklihood
+
+
 def test_hmm_tf_fair_forward_backward(hmm_tf_fair, hmm_fair):
-    y = np.array([0, 0, 1, 1])
+    y = lik(np.array([0, 0, 1, 1]))
 
     np_posterior, _, _ = hmm_fair.forward_backward(y)
     print 'tf'
@@ -56,14 +69,28 @@ def test_hmm_tf_fair_forward_backward(hmm_tf_fair, hmm_fair):
     assert np.isclose(np_posterior, tf_posterior).all()
 
 
+def test_lik():
+    yin = np.array([0, 0.25, 0.5, 0.75, 1])
+    y = lik(yin)
+
+    assert np.all(y == np.array([
+        [1.00, 0.00],
+        [0.75, 0.25],
+        [0.50, 0.50],
+        [0.25, 0.75],
+        [0.00, 1.00],
+    ]))
+
+
 def test_hmm_fair_forward_backward(hmm_fair):
-    y = np.array([0, 0, 1, 1])
+    y = lik(np.array([0, 0, 1, 1]))
+
     posterior, f, b = hmm_fair.forward_backward(y)
 
     # if P is filled with 0.5, the only thing that matters is the emission
     # liklihood.  assert that the posterior is = the liklihood of y
     for i, yi in enumerate(y):
-        liklihood = hmm_fair.lik(yi) / np.sum(hmm_fair.lik(yi))
+        liklihood = yi / np.sum(yi)
         assert np.isclose(posterior[i, :], liklihood).all()
 
     # assert that posterior for any given t sums to 1
@@ -81,7 +108,7 @@ def test_hmm_latch_two_step_no_noise(hmm_latch):
 
             print '*'*80
             print y
-            states, scores = hmm_latch.viterbi_decode(y)
+            states, scores = hmm_latch.viterbi_decode(lik(y))
 
             assert all(states == y)
 
@@ -105,10 +132,10 @@ def test_hmm_tf_partial_forward(hmm_tf_latch, hmm_latch):
 
 def test_hmm_tf_viterbi_decode(hmm_tf_latch, hmm_latch):
     ys = [
-        np.array([0, 0]),
-        np.array([1, 1]),
-        np.array([0, 1]),
-        np.array([0, 0.25, 0.5, 0.75, 1]),
+        lik(np.array([0, 0])),
+        lik(np.array([1, 1])),
+        lik(np.array([0, 1])),
+        lik(np.array([0, 0.25, 0.5, 0.75, 1])),
     ]
 
     for y in ys:

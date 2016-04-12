@@ -30,20 +30,12 @@ class HMM(object):
             self.p0 = p0
         self.logp0 = np.log(self.p0)
 
-    def lik(self, y):
-        # if y == 0: return [1, 0]
-        # if y == 1: return [0, 1]
-        return y * np.array([0.0, 1.0]) + (1.0 - y) * np.array([1.0, 0.0])
-
-    def log_lik(self, y):
-        return np.log(self.lik(y))
-
 
 class HMMNumpy(HMM):
 
     def forward_backward(self, y):
         # set up
-        nT = y.size
+        nT = y.shape[0]
         posterior = np.zeros((nT, self.K))
         forward = np.zeros((nT + 1, self.K))
         backward = np.zeros((nT + 1, self.K))
@@ -53,7 +45,7 @@ class HMMNumpy(HMM):
         for t in xrange(nT):
             tmp = np.multiply(
                 np.matmul(forward[t, :], self.P),
-                self.lik(y[t])
+                y[t]
             )
 
             forward[t + 1, :] = tmp / np.sum(tmp)
@@ -63,7 +55,7 @@ class HMMNumpy(HMM):
         for t in xrange(nT, 0, -1):
             tmp = np.matmul(
                 np.matmul(
-                    self.P, np.diag(self.lik(y[t - 1]))
+                    self.P, np.diag(y[t - 1])
                 ),
                 backward[t, :].transpose()
             ).transpose()
@@ -97,7 +89,7 @@ class HMMNumpy(HMM):
         pathScores = np.zeros((nT, self.K))
 
         # initialize
-        pathScores[0] = self.logp0 + self.log_lik(y[0])
+        pathScores[0] = self.logp0 + np.log(y[0])
 
         for t, yy in enumerate(y[1:]):
             # propagate forward
@@ -105,7 +97,7 @@ class HMMNumpy(HMM):
 
             # the inferred state
             pathStates[t + 1] = np.argmax(tmpMat, 0)
-            pathScores[t + 1] = np.max(tmpMat, 0) + self.log_lik(yy)
+            pathScores[t + 1] = np.max(tmpMat, 0) + np.log(yy)
 
         # now backtrack viterbi to find states
         s = np.zeros(nT, dtype=np.int)
@@ -120,10 +112,7 @@ class HMMTensorflow(HMM):
 
     def forward_backward(self, y):
         # set up
-        if isinstance(y, np.ndarray):
-            nT = y.size
-        else:
-            nT = len(y)
+        nT = y.shape[0]
 
         posterior = np.zeros((nT, self.K))
         forward = []
@@ -138,7 +127,7 @@ class HMMTensorflow(HMM):
             # matrix multiplies instead of element wise that an array would be
             tmp = tf.mul(
                 tf.matmul(forward[t], self.P),
-                self.lik(y[t])
+                y[t]
             )
 
             forward.append(tmp / tf.reduce_sum(tmp))
@@ -149,7 +138,7 @@ class HMMTensorflow(HMM):
         for t in xrange(nT, 0, -1):
             tmp = tf.transpose(
                 tf.matmul(
-                    tf.matmul(self.P, tf.diag(self.lik(y[t - 1]))),
+                    tf.matmul(self.P, tf.diag(y[t - 1])),
                     tf.transpose(backward[t])
                 )
             )
@@ -183,7 +172,7 @@ class HMMTensorflow(HMM):
 
         # initialize
         pathStates.append(None)
-        pathScores.append(self.logp0 + self.log_lik(y[0]))
+        pathScores.append(self.logp0 + np.log(y[0]))
 
         for t, yy in enumerate(y[1:]):
             # propagate forward
@@ -191,7 +180,7 @@ class HMMTensorflow(HMM):
 
             # the inferred state
             pathStates.append(tf.argmax(tmpMat, 0))
-            pathScores.append(tf.reduce_max(tmpMat, 0) + self.log_lik(yy))
+            pathScores.append(tf.reduce_max(tmpMat, 0) + np.log(yy))
 
         # now backtrack viterbi to find states
         s = [0] * nT
