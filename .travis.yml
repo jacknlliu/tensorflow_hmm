@@ -4,17 +4,9 @@ language: python
 matrix:
     include:
         - python: 3.4
-          env: KERAS_BACKEND=theano
-        - python: 3.4
           env: KERAS_BACKEND=tensorflow
         - python: 2.7
-          env: KERAS_BACKEND=theano
-        - python: 2.7
           env: KERAS_BACKEND=tensorflow
-        - python: 2.7
-          env: KERAS_BACKEND=theano TEST_MODE=INTEGRATION_TESTS
-        - python: 2.7
-          env: KERAS_BACKEND=theano TEST_MODE=PEP8
 install:
   # code below is taken from http://conda.pydata.org/docs/travis.html
   # We do this conditionally because it saves us some downloading if the
@@ -38,7 +30,8 @@ install:
   - pip install pep8 pytest-pep8
   - pip install git+git://github.com/Theano/Theano.git
 
-  - python setup.py install
+  # TODO: make a setup.py for installing
+  # - python setup.py install
 
   # install TensorFlow
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
