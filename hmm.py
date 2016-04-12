@@ -42,7 +42,7 @@ class HMMNumpy(HMM):
 
         # forward pass
         forward[0, :] = 1.0 / self.K
-        for t in xrange(nT):
+        for t in range(nT):
             tmp = np.multiply(
                 np.matmul(forward[t, :], self.P),
                 y[t]
@@ -52,7 +52,7 @@ class HMMNumpy(HMM):
 
         # backward pass
         backward[-1, :] = 1.0 / self.K
-        for t in xrange(nT, 0, -1):
+        for t in range(nT, 0, -1):
             tmp = np.matmul(
                 np.matmul(
                     self.P, np.diag(y[t - 1])
@@ -140,7 +140,7 @@ class HMMTensorflow(HMM):
         forward.append(
             tf.ones((1, self.K), dtype=tf.float64) * (1.0 / self.K)
         )
-        for t in xrange(nT):
+        for t in range(nT):
             # NOTE: np.matrix expands forward[t, :] into 2d and causes * to be
             # matrix multiplies instead of element wise that an array would be
             tmp = tf.mul(
@@ -153,7 +153,7 @@ class HMMTensorflow(HMM):
         # backward pass
         backward = [None] * (nT + 1)
         backward[-1] = tf.ones((1, self.K), dtype=tf.float64) * (1.0 / self.K)
-        for t in xrange(nT, 0, -1):
+        for t in range(nT, 0, -1):
             tmp = tf.transpose(
                 tf.matmul(
                     tf.matmul(self.P, tf.diag(y[t - 1])),
