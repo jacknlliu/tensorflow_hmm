@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import pytest
 import numpy as np
 import tensorflow as tf
@@ -14,7 +16,7 @@ def latch_P():
 
     for i in range(2):
         for j in range(2):
-            print 'from', i, 'to', j, P[i, j]
+            print('from', i, 'to', j, P[i, j])
     return P
 
 
@@ -60,12 +62,12 @@ def test_hmm_tf_fair_forward_backward(hmm_tf_fair, hmm_fair):
     y = lik(np.array([0, 0, 1, 1]))
 
     np_posterior, _, _ = hmm_fair.forward_backward(y)
-    print 'tf'
+    print('tf')
     g_posterior, _, _ = hmm_tf_fair.forward_backward(y)
     tf_posterior = np.concatenate(tf.Session().run(g_posterior))
 
-    print 'np_posterior', np_posterior
-    print 'tf_posterior', tf_posterior
+    print('np_posterior', np_posterior)
+    print('tf_posterior', tf_posterior)
     assert np.isclose(np_posterior, tf_posterior).all()
 
 
@@ -106,8 +108,8 @@ def test_hmm_latch_two_step_no_noise(hmm_latch):
             if i == 1 and j == 0:
                 continue
 
-            print '*'*80
-            print y
+            print('*'*80)
+            print(y)
             states, scores = hmm_latch.viterbi_decode(lik(y))
 
             assert all(states == y)
@@ -139,16 +141,16 @@ def test_hmm_tf_viterbi_decode(hmm_tf_latch, hmm_latch):
     ]
 
     for y in ys:
-        print y
+        print(y)
 
         tf_s_graph, tf_scores_graph = hmm_tf_latch.viterbi_decode(y, len(y))
         tf_s = tf.Session().run(tf_s_graph)
         tf_scores = [tf_scores_graph[0]]
         tf_scores.extend([tf.Session().run(g) for g in tf_scores_graph[1:]])
-        print np.array(tf_scores)
+        print(np.array(tf_scores))
 
         np_s, np_scores = hmm_latch.viterbi_decode(y)
-        print np_scores
+        print(np_scores)
 
         assert (tf_s == np_s).all()
-        print
+        print()
