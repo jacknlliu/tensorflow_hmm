@@ -61,11 +61,3 @@ class HMMTensorflow(HMM):
               time t.  sum(pathScores[t, :]) will not necessary == 1
           """
 ```
-
-
-# TODO
-
-* more easily usable tensorflow 'layer'
-* better documentation
-* keras layer
-* readthedocs
