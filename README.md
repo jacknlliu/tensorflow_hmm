@@ -3,7 +3,7 @@
 # tensorflow_hmm
 Tensorflow and numpy implementations of the HMM viterbi and forward/backward algorithms
 
-see test_hmm.py for usage examples.  Here is an excerpt of the documentation from hmm.py for reference for now.
+See test_hmm.py for usage examples.  Here is an excerpt of the documentation from hmm.py for reference for now.
 
 See also viterbi_wikipedia_example.py which replicates the viterbi example on wikipedia.
 
