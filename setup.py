@@ -12,7 +12,6 @@ setup(
     license='Apache',
     packages=['tensorflow_hmm'],
     install_requires=[
-        'tensorflow',
         'numpy',
         'pytest',
     ],
