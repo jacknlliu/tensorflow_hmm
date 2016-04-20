@@ -4,7 +4,7 @@ import pytest
 import numpy as np
 import tensorflow as tf
 
-from hmm import HMMNumpy, HMMTensorflow
+from tensorflow_hmm import HMMNumpy, HMMTensorflow
 
 
 @pytest.fixture
