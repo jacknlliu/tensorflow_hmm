@@ -2,6 +2,7 @@
 An example using both tensorflow and numpy implementations of viterbi
 replicating example on wikipedia
 """
+__author__ = 'Marvin Bertin <marvin.bertin@gmail.com>'
 
 from __future__ import print_function
 import tensorflow as tf
