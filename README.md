@@ -5,6 +5,8 @@ A tensorflow and numpy implementation of the HMM viterbi and forward/backward al
 
 see test_hmm.py for usage examples.  Here is an excerpt of the documentation from hmm.py for reference for now.
 
+See also viterbi_wikipedia_example.py which replicates the viterbi example on wikipedia.
+
 ```
 class HMM(object):
     """
