@@ -1,5 +1,5 @@
 tensorflow_hmm
-=========
+==============
 
 .. toctree::
    :maxdepth: 4
