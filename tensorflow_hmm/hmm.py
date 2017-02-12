@@ -180,7 +180,7 @@ class HMMTensorflow(HMM):
         )
         return expanded_scores + self.logP
 
-    def viterbi_decode(self, y, nT):
+    def viterbi_decode(self, y):
         """
         Runs viterbi decode on state probabilies y.
 
@@ -188,7 +188,6 @@ class HMMTensorflow(HMM):
         ---------
         y : np.array : shape (T, K) where T is number of timesteps and
             K is the number of states
-        nT : int : number of timesteps in y
 
         Returns
         -------
@@ -199,6 +198,19 @@ class HMMTensorflow(HMM):
             each value at (t, k) is the log likliehood score in state k at
             time t.  sum(pathScores[t, :]) will not necessary == 1
         """
+        y = np.asarray(y)
+        if len(y.shape) != 2:
+            raise ValueError((
+                'y should be 2d of shape (nT, {}).  Found {}'
+            ).format(self.K, y.shape))
+
+        if y.shape[1] != self.K:
+            raise ValueError((
+                'y has an invalid shape.  first dimension is time and second '
+                'is K.  Expected K for this model is {}, found {}.'
+            ).format(self.K, y.shape[1]))
+
+        nT = y.shape[0]
 
         # pathStates and pathScores wil be of type tf.Tensor.  They
         # are lists since tensorflow doesn't allow indexing, and the

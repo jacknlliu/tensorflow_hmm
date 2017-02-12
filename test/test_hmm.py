@@ -143,7 +143,7 @@ def test_hmm_tf_viterbi_decode(hmm_tf_latch, hmm_latch):
     for y in ys:
         print(y)
 
-        tf_s_graph, tf_scores_graph = hmm_tf_latch.viterbi_decode(y, len(y))
+        tf_s_graph, tf_scores_graph = hmm_tf_latch.viterbi_decode(y)
         tf_s = tf.Session().run(tf_s_graph)
         tf_scores = [tf_scores_graph[0]]
         tf_scores.extend([tf.Session().run(g) for g in tf_scores_graph[1:]])
@@ -154,3 +154,8 @@ def test_hmm_tf_viterbi_decode(hmm_tf_latch, hmm_latch):
 
         assert (tf_s == np_s).all()
         print()
+
+
+def test_hmm_tf_viterbi_decode_wrong_shape(hmm_tf_latch, hmm_latch):
+    with pytest.raises(ValueError):
+        hmm_tf_latch.viterbi_decode([0, 1, 1, 0])
