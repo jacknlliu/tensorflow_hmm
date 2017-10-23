@@ -143,7 +143,7 @@ class HMMTensorflow(HMM):
         for t in range(nT):
             # NOTE: np.matrix expands forward[t, :] into 2d and causes * to be
             # matrix multiplies instead of element wise that an array would be
-            tmp = tf.mul(
+            tmp = tf.multiply(
                 tf.matmul(forward[t], self.P),
                 y[t]
             )
@@ -176,7 +176,7 @@ class HMMTensorflow(HMM):
         # first convert scores into shape [K, 1]
         # then concatenate K of them into shape [K, K]
         expanded_scores = tf.concat(
-            1, [tf.expand_dims(scores, 1)] * self.K
+            [tf.expand_dims(scores, 1)] * self.K, 1
         )
         return expanded_scores + self.logP
 
