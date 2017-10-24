@@ -135,7 +135,6 @@ class HMMTensorflow(HMM):
         # set up
         N = y.shape[0]
         nT = y.shape[1]
-        print 'y.shape', y.shape
 
         posterior = np.zeros((N, nT, self.K))
         forward = []
@@ -165,13 +164,11 @@ class HMMTensorflow(HMM):
         forward = forward[1:]
         backward = backward[:-1]
 
-        print forward
-        print backward
 
         # combine and normalize
         posterior = [f * b for f, b in zip(forward, backward)]
         posterior = [p / tf.expand_dims(tf.reduce_sum(p, axis=1), axis=1) for p in posterior]
-        print posterior
+        posterior = tf.stack(posterior, axis=1)
 
         return posterior, forward, backward
 

@@ -72,13 +72,13 @@ def test_hmm_tf_fair_forward_backward(hmm_tf_fair, hmm_fair):
 
 
 def test_hmm_tf_fair_forward_backward_multiple_batch(hmm_tf_fair, hmm_fair):
-    # y = lik(np.array([[0, 0, 1, 1]] * 3).T)
     y = lik(np.array([0, 0, 1, 1]))
 
     np_posterior, _, _ = hmm_fair.forward_backward(y)
     print('tf')
+    y = np.stack([y] * 3)
     g_posterior, _, _ = hmm_tf_fair.forward_backward(y)
-    tf_posterior = np.concatenate(tf.Session().run(g_posterior))
+    tf_posterior = tf.Session().run(g_posterior)
 
     print('np_posterior', np_posterior)
     print('tf_posterior', tf_posterior)
@@ -89,19 +89,15 @@ def test_hmm_tf_fair_forward_backward_multiple_batch(hmm_tf_fair, hmm_fair):
 def test_hmm_tf_latch_forward_backward_multiple_batch(hmm_tf_latch, hmm_latch):
     y = lik(np.array([0, 0, 1, 1]))
 
-    np_posterior, _, _ = hmm_latch.forward_backward(y)
+    np_posterior, np_forward, _ = hmm_latch.forward_backward(y)
+    y = np.stack([y] * 3)
     print('tf')
-    # y = lik(np.array([[0, 0, 1, 1]] * 3).T)
-    g_posterior, _, _ = hmm_tf_latch.forward_backward(y)
-    check = tf.add_check_numerics_ops()
-    tf_posterior, _ = tf.Session().run([g_posterior, check])
-    tf_posterior = np.stack(tf_posterior, axis=1)
-    print('shape', tf_posterior.shape)
+    g_posterior, g_forward, _ = hmm_tf_latch.forward_backward(y)
+    tf_posterior = tf.Session().run(g_posterior)
 
     print('np_posterior', np_posterior)
     print('tf_posterior', tf_posterior)
     assert np.isclose(np_posterior, tf_posterior).all()
-    # assert False
 
 
 def test_lik():
