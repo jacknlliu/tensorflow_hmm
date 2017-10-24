@@ -72,8 +72,8 @@ def test_hmm_tf_fair_forward_backward(hmm_tf_fair, hmm_fair):
 
 
 def test_hmm_tf_fair_forward_backward_multiple_batch(hmm_tf_fair, hmm_fair):
-    y = lik(np.array([[0, 0, 1, 1]] * 3).T)
-    # y = lik(np.array([0, 0, 1, 1]))
+    # y = lik(np.array([[0, 0, 1, 1]] * 3).T)
+    y = lik(np.array([0, 0, 1, 1]))
 
     np_posterior, _, _ = hmm_fair.forward_backward(y)
     print('tf')
@@ -83,7 +83,7 @@ def test_hmm_tf_fair_forward_backward_multiple_batch(hmm_tf_fair, hmm_fair):
     print('np_posterior', np_posterior)
     print('tf_posterior', tf_posterior)
     assert np.isclose(np_posterior, tf_posterior).all()
-    assert False
+    # assert False
 
 
 def test_lik():

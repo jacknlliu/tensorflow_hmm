@@ -129,36 +129,38 @@ class HMMTensorflow(HMM):
         backward : list of length T of tensorflow graph nodes representing
             the backward probability of each state at each time step
         """
-        # set up
-        nT = y.shape[0]
+        if len(y.shape) == 2:
+            y = np.expand_dims(y, axis=0)
 
-        posterior = np.zeros((nT, self.K))
+        # set up
+        N = y.shape[0]
+        nT = y.shape[1]
+        print 'y.shape', y.shape
+
+        posterior = np.zeros((N, nT, self.K))
         forward = []
-        backward = np.zeros((nT + 1, self.K))
+        backward = np.zeros((N, nT + 1, self.K))
 
         # forward pass
-        forward.append(
-            tf.ones((1, self.K), dtype=tf.float64) * (1.0 / self.K)
-        )
+        forward.append(tf.ones((N, self.K), dtype=tf.float64) * (1.0 / self.K))
         for t in range(nT):
             # NOTE: np.matrix expands forward[t, :] into 2d and causes * to be
             # matrix multiplies instead of element wise that an array would be
-            tmp = tf.multiply(
-                tf.matmul(forward[t], self.P),
-                y[t]
-            )
+            tmp = tf.multiply(tf.matmul(forward[t], self.P), y[:, t])
 
             forward.append(tmp / tf.reduce_sum(tmp))
 
         # backward pass
         backward = [None] * (nT + 1)
-        backward[-1] = tf.ones((1, self.K), dtype=tf.float64) * (1.0 / self.K)
+        backward[-1] = tf.ones((N, self.K), dtype=tf.float64) * (1.0 / self.K)
         for t in range(nT, 0, -1):
-            tmp = tf.transpose(
-                tf.matmul(
-                    tf.matmul(self.P, tf.diag(y[t - 1])),
-                    tf.transpose(backward[t])
-                )
+            # combine transition matrix with observations
+            combined = tf.multiply(
+                tf.expand_dims(self.P, 0), tf.expand_dims(y[:, t - 1], 1)
+            )
+            # expand dims could also be 2 instead of 1, then reduction axis becomes 1 instead of 2
+            tmp = tf.reduce_sum(
+                tf.multiply(combined, tf.expand_dims(backward[t], 1)), axis=2
             )
             backward[t - 1] = tmp / tf.reduce_sum(tmp)
 
