@@ -86,6 +86,24 @@ def test_hmm_tf_fair_forward_backward_multiple_batch(hmm_tf_fair, hmm_fair):
     # assert False
 
 
+def test_hmm_tf_latch_forward_backward_multiple_batch(hmm_tf_latch, hmm_latch):
+    y = lik(np.array([0, 0, 1, 1]))
+
+    np_posterior, _, _ = hmm_latch.forward_backward(y)
+    print('tf')
+    # y = lik(np.array([[0, 0, 1, 1]] * 3).T)
+    g_posterior, _, _ = hmm_tf_latch.forward_backward(y)
+    check = tf.add_check_numerics_ops()
+    tf_posterior, _ = tf.Session().run([g_posterior, check])
+    tf_posterior = np.stack(tf_posterior, axis=1)
+    print('shape', tf_posterior.shape)
+
+    print('np_posterior', np_posterior)
+    print('tf_posterior', tf_posterior)
+    assert np.isclose(np_posterior, tf_posterior).all()
+    # assert False
+
+
 def test_lik():
     yin = np.array([0, 0.25, 0.5, 0.75, 1])
     y = lik(yin)

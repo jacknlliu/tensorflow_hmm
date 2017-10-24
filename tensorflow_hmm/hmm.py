@@ -144,11 +144,9 @@ class HMMTensorflow(HMM):
         # forward pass
         forward.append(tf.ones((N, self.K), dtype=tf.float64) * (1.0 / self.K))
         for t in range(nT):
-            # NOTE: np.matrix expands forward[t, :] into 2d and causes * to be
-            # matrix multiplies instead of element wise that an array would be
             tmp = tf.multiply(tf.matmul(forward[t], self.P), y[:, t])
 
-            forward.append(tmp / tf.reduce_sum(tmp))
+            forward.append(tmp / tf.expand_dims(tf.reduce_sum(tmp, axis=1), axis=1))
 
         # backward pass
         backward = [None] * (nT + 1)
@@ -158,19 +156,22 @@ class HMMTensorflow(HMM):
             combined = tf.multiply(
                 tf.expand_dims(self.P, 0), tf.expand_dims(y[:, t - 1], 1)
             )
-            # expand dims could also be 2 instead of 1, then reduction axis becomes 1 instead of 2
             tmp = tf.reduce_sum(
                 tf.multiply(combined, tf.expand_dims(backward[t], 1)), axis=2
             )
-            backward[t - 1] = tmp / tf.reduce_sum(tmp)
+            backward[t - 1] = tmp / tf.expand_dims(tf.reduce_sum(tmp, axis=1), axis=1)
 
         # remove initial/final probabilities
         forward = forward[1:]
         backward = backward[:-1]
 
+        print forward
+        print backward
+
         # combine and normalize
         posterior = [f * b for f, b in zip(forward, backward)]
-        posterior = [p / tf.reduce_sum(p) for p in posterior]
+        posterior = [p / tf.expand_dims(tf.reduce_sum(p, axis=1), axis=1) for p in posterior]
+        print posterior
 
         return posterior, forward, backward
 
