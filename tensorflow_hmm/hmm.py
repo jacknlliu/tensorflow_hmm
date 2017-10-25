@@ -16,6 +16,14 @@ class HMM(object):
     def __init__(self, P, p0=None):
         self.K = P.shape[0]
 
+        if len(P.shape) !=  2:
+            raise ValueError('P shape should have length 2. found {}'.format(len(P.shape)))
+        if P.shape[0] !=  P.shape[1]:
+            raise ValueError('P.shape should be square, found {}'.format(P.shape))
+
+        # make sure probability matrix is normalized
+        P = P / np.sum(P,1)
+
         self.P = P
         self.logP = np.log(self.P)
 
@@ -131,7 +139,7 @@ class HMMTensorflow(HMM):
             the backward probability of each state at each time step
         """
         if len(y.shape) == 2:
-            y = np.expand_dims(y, axis=0)
+            y = tf.expand_dims(y, axis=0)
 
         # set up
         N = y.shape[0]

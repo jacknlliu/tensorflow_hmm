@@ -62,6 +62,13 @@ def lik(y):
     liklihood[..., 0] = 1 - liklihood[..., 0]
     return liklihood
 
+def test_tf_hmm_invalid_P_shape():
+    with pytest.raises(ValueError):
+        HMMTensorflow(np.ones((1, 2)))
+
+def test_tf_hmm_invalid_P_dimensions():
+    with pytest.raises(ValueError):
+        HMMTensorflow(np.ones((1,)))
 
 def test_hmm_tf_fair_forward_backward(hmm_tf_fair, hmm_fair):
     y = lik(np.array([0, 0, 1, 1]))
