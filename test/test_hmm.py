@@ -155,6 +155,7 @@ def test_hmm_latch_two_step_no_noise(hmm_latch):
             assert all(states == y)
 
 
+
 def test_hmm_tf_partial_forward(hmm_tf_latch, hmm_latch):
     scoress = [
         np.log(np.array([0, 1])),
@@ -170,6 +171,21 @@ def test_hmm_tf_partial_forward(hmm_tf_latch, hmm_latch):
         np_ret = hmm_latch._viterbi_partial_forward(scores)
 
         assert (tf_ret == np_ret).all()
+
+def test_hmm_partial_forward_batched(hmm_latch):
+    scoress = [
+        np.log(np.array([0, 1])),
+        np.log(np.array([1, 0])),
+        np.log(np.array([0.25, 0.75])),
+        np.log(np.array([0.5, 0.5])),
+    ]
+
+    scores_batch = np.array(scoress)
+
+    res = [hmm_latch._viterbi_partial_forward(scores) for scores in scoress]
+    res_batched = hmm_latch._viterbi_partial_forward_batched(scores_batch)
+
+    assert np.all(np.asarray(res) == res_batched)
 
 
 def test_hmm_tf_viterbi_decode(hmm_tf_latch, hmm_latch):
@@ -194,6 +210,33 @@ def test_hmm_tf_viterbi_decode(hmm_tf_latch, hmm_latch):
 
         assert (tf_s == np_s).all()
         print()
+
+
+def test_hmm_viterbi_decode_batched(hmm_latch):
+    ys_T2 = [
+        lik(np.array([0, 0])),
+        lik(np.array([0, 1])),
+        lik(np.array([1, 1])),
+    ]
+    ys_T5 = [
+        lik([0, 0.25, 0.5, 0.75, 1]),
+        lik([0, 0.65, 0.5, 0.95, .1]),
+    ]
+
+    ys_T2_batch = np.asarray(ys_T2)
+    ys_T5_batch = np.asarray(ys_T5)
+
+    res = [hmm_latch.viterbi_decode(y) for y in ys_T2]
+    res_s, res_scores = zip(*res)
+    res_s_batch, res_scores_batch = hmm_latch.viterbi_decode_batched(ys_T2_batch)
+    assert np.all(np.asarray(res_s) == res_s_batch)
+    assert np.all(np.asarray(res_scores) == res_scores_batch)
+
+    res = [hmm_latch.viterbi_decode(y) for y in ys_T5]
+    res_s, res_scores = zip(*res)
+    res_s_batch, res_scores_batch = hmm_latch.viterbi_decode_batched(ys_T5_batch)
+    assert np.all(np.asarray(res_s) == res_s_batch)
+    assert np.all(np.asarray(res_scores) == res_scores_batch)
 
 
 def test_hmm_tf_viterbi_decode_wrong_shape(hmm_tf_latch, hmm_latch):

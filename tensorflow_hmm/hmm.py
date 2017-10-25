@@ -45,8 +45,9 @@ class HMMNumpy(HMM):
         # set up
         if y.ndim == 2:
             y = y[np.newaxis, ...]
-        nT = y.shape[1]
-        nB = y.shape[0]
+
+        nB, nT = y.shape[:2]
+
         posterior = np.zeros((nB, nT, self.K))
         forward = np.zeros((nB, nT + 1, self.K))
         backward = np.zeros((nB, nT + 1, self.K))
@@ -89,8 +90,26 @@ class HMMNumpy(HMM):
                 tmpMat[i, j] = scores[i] + self.logP[i, j]
         return tmpMat
 
+    def _viterbi_partial_forward_batched(self, scores):
+        """
+        Expects inputs in [B, K] layout
+        """
+        # support non-batched version
+        if scores.ndim == 1:
+            scores = scores[np.newaxis, ...]
+
+        nB, K  = scores.shape
+        assert K == self.K, "Incompatible scores"
+
+        tmpMat = np.zeros((nB, self.K, self.K))
+        for i in range(self.K):
+            for j in range(self.K):
+                tmpMat[:, i, j] = scores[:, i] + self.logP[i, j]
+        return tmpMat
+
     def viterbi_decode(self, y):
-        y = np.array(y)
+
+        y = np.array(y)  # TODO<marcel>: not sure why needed
 
         nT = y.shape[0]
 
@@ -103,7 +122,6 @@ class HMMNumpy(HMM):
         for t, yy in enumerate(y[1:]):
             # propagate forward
             tmpMat = self._viterbi_partial_forward(pathScores[t])
-
             # the inferred state
             pathStates[t + 1] = np.argmax(tmpMat, 0)
             pathScores[t + 1] = np.max(tmpMat, 0) + np.log(yy)
@@ -113,6 +131,42 @@ class HMMNumpy(HMM):
         s[-1] = np.argmax(pathScores[-1])
         for t in range(nT - 1, 0, -1):
             s[t - 1] = pathStates[t, s[t]]
+
+        return s, pathScores
+
+    def viterbi_decode_batched(self, y):
+        """
+        Expects inputs in [B, N, K] layout
+        """
+        y = np.array(y)  # TODO<marcel>: not sure why needed
+
+        # take care of non-batched version
+        if y.ndim == 2:
+            y = y[np.newaxis, ...]
+
+        nB, nT = y.shape[:2]
+
+        pathStates = np.zeros((nB, nT, self.K), dtype=np.int)
+        pathScores = np.zeros((nB, nT, self.K))
+
+        # initialize
+        pathScores[:, 0] = self.logp0 + np.log(y[:, 0])
+
+        for t in range(0, nT-1):
+            yy = y[:, t+1]
+            #for t, yy in enumerate(y[:, 1:]):
+            # propagate forward
+            tmpMat = self._viterbi_partial_forward_batched(pathScores[:, t])
+            # the inferred state
+            print('tmpMat', tmpMat)
+            pathStates[:, t + 1] = np.argmax(tmpMat, axis=1)
+            pathScores[:, t + 1] = np.squeeze(np.max(tmpMat, axis=1)) + np.log(yy)
+
+        # now backtrack viterbi to find states
+        s = np.zeros((nB, nT), dtype=np.int)
+        s[:, -1] = np.argmax(pathScores[:, -1], axis=1)
+        for t in range(nT - 1, 0, -1):
+            s[:, t - 1] = pathStates[:, t][range(nB), s[:, t]]
 
         return s, pathScores
 
