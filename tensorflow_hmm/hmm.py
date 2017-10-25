@@ -35,42 +35,43 @@ class HMMNumpy(HMM):
 
     def forward_backward(self, y):
         # set up
-        nT = y.shape[0]
-        posterior = np.zeros((nT, self.K))
-        forward = np.zeros((nT + 1, self.K))
-        backward = np.zeros((nT + 1, self.K))
+        if y.ndim == 2:
+            y = y[np.newaxis, ...]
+        nT = y.shape[1]
+        nB = y.shape[0]
+        posterior = np.zeros((nB, nT, self.K))
+        forward = np.zeros((nB, nT + 1, self.K))
+        backward = np.zeros((nB, nT + 1, self.K))
 
         # forward pass
-        forward[0, :] = 1.0 / self.K
+        forward[:, 0, :] = 1.0 / self.K
         for t in range(nT):
             tmp = np.multiply(
-                np.matmul(forward[t, :], self.P),
-                y[t]
+                np.matmul(forward[:, t, :], self.P),
+                y[:, t]
             )
-
-            forward[t + 1, :] = tmp / np.sum(tmp)
+            # normalize
+            forward[:, t + 1, :] = tmp / np.sum(tmp, axis=1)[:, np.newaxis]
 
         # backward pass
-        backward[-1, :] = 1.0 / self.K
+        backward[:, -1, :] = 1.0 / self.K
         for t in range(nT, 0, -1):
-            tmp = np.matmul(
-                np.matmul(
-                    self.P, np.diag(y[t - 1])
-                ),
-                backward[t, :].transpose()
-            ).transpose()
+            # TODO[marcel]: double check whether y[:,t-1] should be y[:,t]
+            tmp = np.matmul(self.P, (y[:, t - 1] * backward[:, t, :]).T).T
+            # normalize
+            backward[:, t - 1, :] = tmp / np.sum(tmp, axis=1)[:, np.newaxis]
 
-            backward[t - 1, :] = tmp / np.sum(tmp)
+        # remove initial/final probabilities and squeeze for non-batched tests
+        forward = np.squeeze(forward[:, 1:, :])
+        backward = np.squeeze(backward[:, :-1, :])
 
-        # remove initial/final probabilities
-        forward = forward[1:, :]
-        backward = backward[:-1, :]
-
+        # TODO[marcel]: posterior missing initial probabilities
         # combine and normalize
         posterior = np.array(forward) * np.array(backward)
         # [:,None] expands sum to be correct size
-        posterior = posterior / np.sum(posterior, 1)[:, None]
+        posterior = posterior / np.sum(posterior, axis=-1)[..., np.newaxis]
 
+        # squeeze for non-batched tests
         return posterior, forward, backward
 
     def _viterbi_partial_forward(self, scores):

@@ -46,15 +46,20 @@ def hmm_tf_latch(latch_P):
 
 
 def lik(y):
-    """ given 1d vector of likliehoods length N, return matrix with
+    """
+
+    given 1d vector of likliehoods length N, return matrix with
     shape (N, 2) where (N, 0) is 1 - y and (N, 1) is y.
+
+    given a 2d array of likelihood sequences of size [N, B] where B is the batch
+    size, return [B, N, 2] where out[B, N, 0] + out[B, N, 1] = 1
 
     This makes it easy to convert a time series of probabilities
     into 2 states, off/on, for a simple HMM.
     """
 
     liklihood = np.array([y, y], float).T
-    liklihood[:, 0] = 1 - liklihood[:, 0]
+    liklihood[..., 0] = 1 - liklihood[..., 0]
     return liklihood
 
 
