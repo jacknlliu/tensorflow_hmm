@@ -13,8 +13,9 @@ class HMM(object):
     - p0 :: the initial distribution (defaults to starting in state 0)
     """
 
-    def __init__(self, P, p0=None):
+    def __init__(self, P, p0=None, length=None):
         self.K = P.shape[0]
+        self.length = length
 
         if len(P.shape) !=  2:
             raise ValueError('P shape should have length 2. found {}'.format(len(P.shape)))
@@ -24,7 +25,7 @@ class HMM(object):
         # make sure probability matrix is normalized
         P = P / np.sum(P,1)
 
-        self.P = P
+        self.P = P.astype(dtype=np.float32)
         self.logP = np.log(self.P)
 
         if p0 is None:
@@ -192,19 +193,20 @@ class HMMTensorflow(HMM):
         backward : list of length T of tensorflow graph nodes representing
             the backward probability of each state at each time step
         """
+        y = tf.cast(y, tf.float32)
+
         if len(y.shape) == 2:
             y = tf.expand_dims(y, axis=0)
 
         # set up
-        N = y.shape[0]
-        nT = y.shape[1]
+        N = tf.shape(y)[0]
+        nT = self.length or y.shape[1]
+        # nT = tf.shape(y)[1]
 
-        posterior = np.zeros((N, nT, self.K))
         forward = []
-        backward = np.zeros((N, nT + 1, self.K))
 
         # forward pass
-        forward.append(tf.ones((N, self.K), dtype=tf.float64) * (1.0 / self.K))
+        forward.append(tf.ones((N, self.K)) * (1.0 / self.K))
         for t in range(nT):
             tmp = tf.multiply(tf.matmul(forward[t], self.P), y[:, t])
 
@@ -212,7 +214,7 @@ class HMMTensorflow(HMM):
 
         # backward pass
         backward = [None] * (nT + 1)
-        backward[-1] = tf.ones((N, self.K), dtype=tf.float64) * (1.0 / self.K)
+        backward[-1] = tf.ones((N, self.K)) * (1.0 / self.K)
         for t in range(nT, 0, -1):
             # combine transition matrix with observations
             combined = tf.multiply(
