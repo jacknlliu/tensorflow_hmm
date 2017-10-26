@@ -155,11 +155,10 @@ class HMMNumpy(HMM):
 
         for t in range(0, nT-1):
             yy = y[:, t+1]
-            #for t, yy in enumerate(y[:, 1:]):
             # propagate forward
             tmpMat = self._viterbi_partial_forward_batched(pathScores[:, t])
             # the inferred state
-            print('tmpMat', tmpMat)
+            print('tmpMat', tmpMat, tmpMat.shape, '\nMAX', np.max(tmpMat, axis=1))
             pathStates[:, t + 1] = np.argmax(tmpMat, axis=1)
             pathScores[:, t + 1] = np.squeeze(np.max(tmpMat, axis=1)) + np.log(yy)
 
@@ -167,7 +166,8 @@ class HMMNumpy(HMM):
         s = np.zeros((nB, nT), dtype=np.int)
         s[:, -1] = np.argmax(pathScores[:, -1], axis=1)
         for t in range(nT - 1, 0, -1):
-            s[:, t - 1] = pathStates[:, t][range(nB), s[:, t]]
+            # s[:, t - 1] = pathStates[:, t][range(nB), s[:, t]]
+            s[:, t - 1] = np.choose(s[:, t], pathStates[:, t].T)
 
         return s, pathScores
 
@@ -256,9 +256,6 @@ class HMMTensorflow(HMM):
         )
         return expanded_scores + self.logP
 
-    def viterbi_decode_batched(self, y):
-        pass
-
     def viterbi_decode(self, y):
         """
         Runs viterbi decode on state probabilies y.
@@ -315,5 +312,70 @@ class HMMTensorflow(HMM):
         s[-1] = tf.argmax(pathScores[-1], 0)
         for t in range(nT - 1, 0, -1):
             s[t - 1] = tf.gather(pathStates[t], s[t])
+
+        return s, pathScores
+
+    def viterbi_decode_batched(self, y):
+        """
+        Runs viterbi decode on state probabilies y in batch mode
+
+        Arguments
+        ---------
+        y : np.array : shape (B, T, K) where T is number of timesteps and
+            K is the number of states
+
+        Returns
+        -------
+        (s, pathScores)
+        s : list of length T of tensorflow ints : represents the most likely
+            state at each time step.
+        pathScores : list of length T of tensorflow tensor of length K
+            each value at (t, k) is the log likliehood score in state k at
+            time t.  sum(pathScores[t, :]) will not necessary == 1
+        """
+        y = np.asarray(y)
+        if y.ndim == 2:
+            y = y[np.newaxis, ...]
+
+        if y.ndim != 3:
+            raise ValueError((
+                'y should be 3d of shape (nB, nT, {}).  Found {}'
+            ).format(self.K, y.shape))
+
+        nB, nT, nC = y.shape
+
+        if nC != self.K:
+            raise ValueError((
+                'y has an invalid shape.  first dimension is time and second '
+                'is K.  Expected K for this model is {}, found {}.'
+            ).format(self.K, nC))
+
+        # pathStates and pathScores will be of type tf.Tensor.  They
+        # are lists since tensorflow doesn't allow indexing, and the
+        # list and order are only really necessary to build the unrolled
+        # graph.  We never do any computation across all of time at once. The
+        # indexing into these list has the dimension of time.
+        pathStates = []
+        pathScores = []
+
+        # initialize
+        pathStates.append(None)
+        pathScores.append(self.logp0 + np.log(y[:, 0]))
+
+        for t in range(0, nT-1):
+            yy = np.squeeze(y[:, t+1])
+            # propagate forward
+            tmpMat = self._viterbi_partial_forward_batched(pathScores[t])
+
+            # the inferred state
+            pathStates.append(tf.argmax(tmpMat, axis=1))
+            pathScores.append(tf.reduce_max(tmpMat, axis=1) + np.log(yy))
+
+        # now backtrack viterbi to find states
+        s = [0] * nT
+        s[-1] = tf.argmax(pathScores[-1], axis=1)
+        for t in range(nT - 1, 0, -1):
+            indx = tf.stack([tf.range(nB, dtype=tf.int64), s[t]], axis=1)
+            s[t - 1] = tf.gather_nd(pathStates[t], indx)
 
         return s, pathScores

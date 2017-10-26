@@ -257,6 +257,43 @@ def test_hmm_viterbi_decode_batched(hmm_latch):
     assert np.all(np.asarray(res_scores) == res_scores_batch)
 
 
+def test_hmm_tf_viterbi_decode_batched(hmm_tf_latch, hmm_latch):
+    ys_T2 = [
+        lik(np.array([0, 0])),
+        lik(np.array([0, 1])),
+        lik(np.array([1, 1])),
+    ]
+    ys_T5 = [
+        lik([0, 0.25, 0.5, 0.75, 1]),
+        lik([0, 0.65, 0.5, 0.95, .1]),
+    ]
+
+    ys_T2_batch = np.asarray(ys_T2)
+    ys_T5_batch = np.asarray(ys_T5)
+
+    np_res_s, np_res_scores = hmm_latch.viterbi_decode_batched(ys_T2_batch)
+
+    tf_s_graph, tf_scores_graph = hmm_tf_latch.viterbi_decode_batched(ys_T2_batch)
+    tf_s = tf.Session().run(tf_s_graph)
+    tf_scores = [tf_scores_graph[0]]
+    tf_scores.extend([tf.Session().run(g) for g in tf_scores_graph[1:]])
+    print(np.array(tf_scores))
+
+    assert np.all(np.asarray(tf_s).T == np_res_s)
+    assert np.all(np.rollaxis(np.asarray(tf_scores), 1, 0) == np_res_scores)
+
+    np_res_s, np_res_scores = hmm_latch.viterbi_decode_batched(ys_T5_batch)
+
+    tf_s_graph, tf_scores_graph = hmm_tf_latch.viterbi_decode_batched(ys_T5_batch)
+    tf_s = tf.Session().run(tf_s_graph)
+    tf_scores = [tf_scores_graph[0]]
+    tf_scores.extend([tf.Session().run(g) for g in tf_scores_graph[1:]])
+    print(np.array(tf_scores))
+
+    assert np.all(np.asarray(tf_s).T == np_res_s)
+    assert np.all(np.rollaxis(np.asarray(tf_scores), 1, 0) == np_res_scores)
+
+
 def test_hmm_tf_viterbi_decode_wrong_shape(hmm_tf_latch, hmm_latch):
     with pytest.raises(ValueError):
         hmm_tf_latch.viterbi_decode([0, 1, 1, 0])
