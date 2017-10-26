@@ -13,10 +13,19 @@ class HMM(object):
     - p0 :: the initial distribution (defaults to starting in state 0)
     """
 
-    def __init__(self, P, p0=None):
+    def __init__(self, P, p0=None, length=None):
         self.K = P.shape[0]
+        self.length = length
 
-        self.P = P
+        if len(P.shape) !=  2:
+            raise ValueError('P shape should have length 2. found {}'.format(len(P.shape)))
+        if P.shape[0] !=  P.shape[1]:
+            raise ValueError('P.shape should be square, found {}'.format(P.shape))
+
+        # make sure probability matrix is normalized
+        P = P / np.sum(P,1)
+
+        self.P = P.astype(dtype=np.float32)
         self.logP = np.log(self.P)
 
         if p0 is None:
@@ -35,42 +44,44 @@ class HMMNumpy(HMM):
 
     def forward_backward(self, y):
         # set up
-        nT = y.shape[0]
-        posterior = np.zeros((nT, self.K))
-        forward = np.zeros((nT + 1, self.K))
-        backward = np.zeros((nT + 1, self.K))
+        if y.ndim == 2:
+            y = y[np.newaxis, ...]
+
+        nB, nT = y.shape[:2]
+
+        posterior = np.zeros((nB, nT, self.K))
+        forward = np.zeros((nB, nT + 1, self.K))
+        backward = np.zeros((nB, nT + 1, self.K))
 
         # forward pass
-        forward[0, :] = 1.0 / self.K
+        forward[:, 0, :] = 1.0 / self.K
         for t in range(nT):
             tmp = np.multiply(
-                np.matmul(forward[t, :], self.P),
-                y[t]
+                np.matmul(forward[:, t, :], self.P),
+                y[:, t]
             )
-
-            forward[t + 1, :] = tmp / np.sum(tmp)
+            # normalize
+            forward[:, t + 1, :] = tmp / np.sum(tmp, axis=1)[:, np.newaxis]
 
         # backward pass
-        backward[-1, :] = 1.0 / self.K
+        backward[:, -1, :] = 1.0 / self.K
         for t in range(nT, 0, -1):
-            tmp = np.matmul(
-                np.matmul(
-                    self.P, np.diag(y[t - 1])
-                ),
-                backward[t, :].transpose()
-            ).transpose()
+            # TODO[marcel]: double check whether y[:,t-1] should be y[:,t]
+            tmp = np.matmul(self.P, (y[:, t - 1] * backward[:, t, :]).T).T
+            # normalize
+            backward[:, t - 1, :] = tmp / np.sum(tmp, axis=1)[:, np.newaxis]
 
-            backward[t - 1, :] = tmp / np.sum(tmp)
+        # remove initial/final probabilities and squeeze for non-batched tests
+        forward = np.squeeze(forward[:, 1:, :])
+        backward = np.squeeze(backward[:, :-1, :])
 
-        # remove initial/final probabilities
-        forward = forward[1:, :]
-        backward = backward[:-1, :]
-
+        # TODO[marcel]: posterior missing initial probabilities
         # combine and normalize
         posterior = np.array(forward) * np.array(backward)
         # [:,None] expands sum to be correct size
-        posterior = posterior / np.sum(posterior, 1)[:, None]
+        posterior = posterior / np.sum(posterior, axis=-1)[..., np.newaxis]
 
+        # squeeze for non-batched tests
         return posterior, forward, backward
 
     def _viterbi_partial_forward(self, scores):
@@ -80,9 +91,24 @@ class HMMNumpy(HMM):
                 tmpMat[i, j] = scores[i] + self.logP[i, j]
         return tmpMat
 
-    def viterbi_decode(self, y):
-        y = np.array(y)
+    def _viterbi_partial_forward_batched(self, scores):
+        """
+        Expects inputs in [B, K] layout
+        """
+        # support non-batched version
+        if scores.ndim == 1:
+            scores = scores[np.newaxis, ...]
 
+        nB, K  = scores.shape
+        assert K == self.K, "Incompatible scores"
+
+        tmpMat = np.zeros((nB, self.K, self.K))
+        for i in range(self.K):
+            for j in range(self.K):
+                tmpMat[:, i, j] = scores[:, i] + self.logP[i, j]
+        return tmpMat
+
+    def viterbi_decode(self, y):
         nT = y.shape[0]
 
         pathStates = np.zeros((nT, self.K), dtype=np.int)
@@ -94,7 +120,6 @@ class HMMNumpy(HMM):
         for t, yy in enumerate(y[1:]):
             # propagate forward
             tmpMat = self._viterbi_partial_forward(pathScores[t])
-
             # the inferred state
             pathStates[t + 1] = np.argmax(tmpMat, 0)
             pathScores[t + 1] = np.max(tmpMat, 0) + np.log(yy)
@@ -104,6 +129,38 @@ class HMMNumpy(HMM):
         s[-1] = np.argmax(pathScores[-1])
         for t in range(nT - 1, 0, -1):
             s[t - 1] = pathStates[t, s[t]]
+
+        return s, pathScores
+
+    def viterbi_decode_batched(self, y):
+        """
+        Expects inputs in [B, N, K] layout
+        """
+        # take care of non-batched version
+        if y.ndim == 2:
+            y = y[np.newaxis, ...]
+
+        nB, nT = y.shape[:2]
+
+        pathStates = np.zeros((nB, nT, self.K), dtype=np.int)
+        pathScores = np.zeros((nB, nT, self.K))
+
+        # initialize
+        pathScores[:, 0] = self.logp0 + np.log(y[:, 0])
+
+        for t in range(0, nT-1):
+            yy = y[:, t+1]
+            # propagate forward
+            tmpMat = self._viterbi_partial_forward_batched(pathScores[:, t])
+            # the inferred state
+            pathStates[:, t + 1] = np.argmax(tmpMat, axis=1)
+            pathScores[:, t + 1] = np.squeeze(np.max(tmpMat, axis=1)) + np.log(yy)
+
+        # now backtrack viterbi to find states
+        s = np.zeros((nB, nT), dtype=np.int)
+        s[:, -1] = np.argmax(pathScores[:, -1], axis=1)
+        for t in range(nT - 1, 0, -1):
+            s[:, t - 1] = pathStates[:, t][range(nB), s[:, t]]
 
         return s, pathScores
 
@@ -129,46 +186,47 @@ class HMMTensorflow(HMM):
         backward : list of length T of tensorflow graph nodes representing
             the backward probability of each state at each time step
         """
-        # set up
-        nT = y.shape[0]
+        y = tf.cast(y, tf.float32)
 
-        posterior = np.zeros((nT, self.K))
+        if len(y.shape) == 2:
+            y = tf.expand_dims(y, axis=0)
+
+        # set up
+        N = tf.shape(y)[0]
+        nT = self.length or y.shape[1]
+        # nT = tf.shape(y)[1]
+
         forward = []
-        backward = np.zeros((nT + 1, self.K))
 
         # forward pass
-        forward.append(
-            tf.ones((1, self.K), dtype=tf.float64) * (1.0 / self.K)
-        )
+        forward.append(tf.ones((N, self.K)) * (1.0 / self.K))
         for t in range(nT):
-            # NOTE: np.matrix expands forward[t, :] into 2d and causes * to be
-            # matrix multiplies instead of element wise that an array would be
-            tmp = tf.multiply(
-                tf.matmul(forward[t], self.P),
-                y[t]
-            )
+            tmp = tf.multiply(tf.matmul(forward[t], self.P), y[:, t])
 
-            forward.append(tmp / tf.reduce_sum(tmp))
+            forward.append(tmp / tf.expand_dims(tf.reduce_sum(tmp, axis=1), axis=1))
 
         # backward pass
         backward = [None] * (nT + 1)
-        backward[-1] = tf.ones((1, self.K), dtype=tf.float64) * (1.0 / self.K)
+        backward[-1] = tf.ones((N, self.K)) * (1.0 / self.K)
         for t in range(nT, 0, -1):
-            tmp = tf.transpose(
-                tf.matmul(
-                    tf.matmul(self.P, tf.diag(y[t - 1])),
-                    tf.transpose(backward[t])
-                )
+            # combine transition matrix with observations
+            combined = tf.multiply(
+                tf.expand_dims(self.P, 0), tf.expand_dims(y[:, t - 1], 1)
             )
-            backward[t - 1] = tmp / tf.reduce_sum(tmp)
+            tmp = tf.reduce_sum(
+                tf.multiply(combined, tf.expand_dims(backward[t], 1)), axis=2
+            )
+            backward[t - 1] = tmp / tf.expand_dims(tf.reduce_sum(tmp, axis=1), axis=1)
 
         # remove initial/final probabilities
         forward = forward[1:]
         backward = backward[:-1]
 
+
         # combine and normalize
         posterior = [f * b for f, b in zip(forward, backward)]
-        posterior = [p / tf.reduce_sum(p) for p in posterior]
+        posterior = [p / tf.expand_dims(tf.reduce_sum(p, axis=1), axis=1) for p in posterior]
+        posterior = tf.stack(posterior, axis=1)
 
         return posterior, forward, backward
 
@@ -179,6 +237,20 @@ class HMMTensorflow(HMM):
             [tf.expand_dims(scores, 1)] * self.K, 1
         )
         return expanded_scores + self.logP
+
+    def _viterbi_partial_forward_batched(self, scores):
+        """
+        Expects inputs in [B, Kl layout
+        """
+        # first convert scores into shape [B, K, 1]
+        # then concatenate K of them into shape [B, K, K]
+        expanded_scores = tf.concat(
+            [tf.expand_dims(scores, axis=2)] * self.K, axis=2
+        )
+        return expanded_scores + self.logP
+
+    def viterbi_decode_batched(self, y):
+        pass
 
     def viterbi_decode(self, y):
         """
