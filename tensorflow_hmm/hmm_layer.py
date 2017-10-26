@@ -10,9 +10,9 @@ class HMMLayer(Layer):
         # todo: perhaps states should just be inferred by the input shape
         # todo: create a few utility functions for generating transition matrices
         self.states = states
-        self.P = np.ones((states, states), dtype=np.float32) * (0.1 / (states - 1))
+        self.P = np.ones((states, states), dtype=np.float32) * (0.01 / (states - 1))
         for i in range(states):
-            self.P[i, i] = 0.9
+            self.P[i, i] = 0.99
 
         self.hmm = HMMTensorflow(self.P, length=length)
 
@@ -26,6 +26,7 @@ class HMMLayer(Layer):
 
     def call(self, x):
         # todo: only optionally apply sigmoid
+        # todo: apply viterbi during inference
         x = Activation(K.sigmoid)(x)
         x = Lambda(lambda x: self.hmm.forward_backward(x)[0])(x)
         return x
