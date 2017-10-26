@@ -245,6 +245,20 @@ class HMMTensorflow(HMM):
         )
         return expanded_scores + self.logP
 
+    def _viterbi_partial_forward_batched(self, scores):
+        """
+        Expects inputs in [B, Kl layout
+        """
+        # first convert scores into shape [B, K, 1]
+        # then concatenate K of them into shape [B, K, K]
+        expanded_scores = tf.concat(
+            [tf.expand_dims(scores, axis=2)] * self.K, axis=2
+        )
+        return expanded_scores + self.logP
+
+    def viterbi_decode_batched(self, y):
+        pass
+
     def viterbi_decode(self, y):
         """
         Runs viterbi decode on state probabilies y.

@@ -155,7 +155,6 @@ def test_hmm_latch_two_step_no_noise(hmm_latch):
             assert all(states == y)
 
 
-
 def test_hmm_tf_partial_forward(hmm_tf_latch, hmm_latch):
     scoress = [
         np.log(np.array([0, 1])),
@@ -171,6 +170,25 @@ def test_hmm_tf_partial_forward(hmm_tf_latch, hmm_latch):
         np_ret = hmm_latch._viterbi_partial_forward(scores)
 
         assert (tf_ret == np_ret).all()
+
+
+def test_hmm_tf_partial_forward_batched(hmm_tf_latch, hmm_latch):
+    scoress = [
+        np.log(np.array([0, 1])),
+        np.log(np.array([1, 0])),
+        np.log(np.array([0.25, 0.75])),
+        np.log(np.array([0.5, 0.5])),
+    ]
+
+    scores_batch = np.asarray(scoress)
+
+    np_res = hmm_latch._viterbi_partial_forward_batched(scores_batch)
+    tf_res = tf.Session().run(
+        hmm_tf_latch._viterbi_partial_forward_batched(scores_batch)
+    )
+
+    assert (tf_res == np_res).all()
+
 
 def test_hmm_partial_forward_batched(hmm_latch):
     scoress = [
