@@ -1,7 +1,9 @@
 [![Build Status](https://travis-ci.org/dwiel/tensorflow_hmm.svg?branch=master)](https://travis-ci.org/dwiel/tensorflow_hmm)
 
 # tensorflow_hmm
-Tensorflow and numpy implementations of the HMM viterbi and forward/backward algorithms
+Tensorflow and numpy implementations of the HMM viterbi and forward/backward algorithms.
+
+See [Keras example](https://github.com/dwiel/tensorflow_hmm/blob/master/tensorflow_hmm/hmm_layer.py) for an example of how to use the Keras HMMLayer.
 
 See test_hmm.py for usage examples.  Here is an excerpt of the documentation from hmm.py for reference for now.
 
