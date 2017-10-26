@@ -109,9 +109,6 @@ class HMMNumpy(HMM):
         return tmpMat
 
     def viterbi_decode(self, y):
-
-        y = np.array(y)  # TODO<marcel>: not sure why needed
-
         nT = y.shape[0]
 
         pathStates = np.zeros((nT, self.K), dtype=np.int)
@@ -139,8 +136,6 @@ class HMMNumpy(HMM):
         """
         Expects inputs in [B, N, K] layout
         """
-        y = np.array(y)  # TODO<marcel>: not sure why needed
-
         # take care of non-batched version
         if y.ndim == 2:
             y = y[np.newaxis, ...]
@@ -155,11 +150,9 @@ class HMMNumpy(HMM):
 
         for t in range(0, nT-1):
             yy = y[:, t+1]
-            #for t, yy in enumerate(y[:, 1:]):
             # propagate forward
             tmpMat = self._viterbi_partial_forward_batched(pathScores[:, t])
             # the inferred state
-            print('tmpMat', tmpMat)
             pathStates[:, t + 1] = np.argmax(tmpMat, axis=1)
             pathScores[:, t + 1] = np.squeeze(np.max(tmpMat, axis=1)) + np.log(yy)
 
