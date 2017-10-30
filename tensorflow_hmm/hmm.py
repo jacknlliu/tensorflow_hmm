@@ -193,40 +193,48 @@ class HMMTensorflow(HMM):
 
         # set up
         N = tf.shape(y)[0]
-        nT = self.length or y.shape[1]
-        # nT = tf.shape(y)[1]
 
-        forward = []
+        # y (batch, recurrent, features) -> (recurrent, batch, features)
+        y = tf.transpose(y, (1, 0, 2))
 
         # forward pass
-        forward.append(tf.ones((N, self.K)) * (1.0 / self.K))
-        for t in range(nT):
-            tmp = tf.multiply(tf.matmul(forward[t], self.P), y[:, t])
+        def forward_function(last_forward, yi):
+            tmp = tf.multiply(tf.matmul(last_forward, self.P), yi)
+            return tmp / tf.reduce_sum(tmp, axis=1, keep_dims=True)
 
-            forward.append(tmp / tf.expand_dims(tf.reduce_sum(tmp, axis=1), axis=1))
+        forward = tf.scan(
+            forward_function,
+            y,
+            initializer=tf.ones((N, self.K)) * (1.0 / self.K),
+        )
 
         # backward pass
-        backward = [None] * (nT + 1)
-        backward[-1] = tf.ones((N, self.K)) * (1.0 / self.K)
-        for t in range(nT, 0, -1):
+        def backward_function(last_backward, yi):
             # combine transition matrix with observations
             combined = tf.multiply(
-                tf.expand_dims(self.P, 0), tf.expand_dims(y[:, t - 1], 1)
+                tf.expand_dims(self.P, 0), tf.expand_dims(yi, 1)
             )
             tmp = tf.reduce_sum(
-                tf.multiply(combined, tf.expand_dims(backward[t], 1)), axis=2
+                tf.multiply(combined, tf.expand_dims(last_backward, 1)), axis=2
             )
-            backward[t - 1] = tmp / tf.expand_dims(tf.reduce_sum(tmp, axis=1), axis=1)
+            return tmp / tf.reduce_sum(tmp, axis=1, keep_dims=True)
 
-        # remove initial/final probabilities
-        forward = forward[1:]
-        backward = backward[:-1]
+        backward = tf.scan(
+            backward_function,
+            tf.reverse(y, [0]),
+            initializer=tf.ones((N, self.K)) * (1.0 / self.K),
+        )
+        backward = tf.reverse(backward, [0])
 
+		# combine forward and backward into posterior probabilities
+        # (recurrent, batch, features)
+        posterior = forward * backward
+        posterior = posterior / tf.reduce_sum(posterior, axis=2, keep_dims=True)
 
-        # combine and normalize
-        posterior = [f * b for f, b in zip(forward, backward)]
-        posterior = [p / tf.expand_dims(tf.reduce_sum(p, axis=1), axis=1) for p in posterior]
-        posterior = tf.stack(posterior, axis=1)
+        # (recurrent, batch, features) -> (batch, recurrent, features)
+        posterior = tf.transpose(posterior, (1, 0, 2))
+        forward = tf.transpose(forward, (1, 0, 2))
+        backward = tf.transpose(backward, (1, 0, 2))
 
         return posterior, forward, backward
 

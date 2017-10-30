@@ -101,15 +101,20 @@ def test_hmm_tf_latch_forward_backward_multiple_batch(hmm_tf_latch, hmm_latch):
     y = lik(np.array([0, 0, 1, 1]))
     y = np.stack([y] * 3)
 
-    np_posterior, np_forward, _ = hmm_latch.forward_backward(y)
+    np_posterior, np_forward, np_backward = hmm_latch.forward_backward(y)
     print('tf')
-    g_posterior, g_forward, _ = hmm_tf_latch.forward_backward(y)
+    g_posterior, g_forward, g_backward = hmm_tf_latch.forward_backward(y)
     tf_posterior = tf.Session().run(g_posterior)
+    tf_forward = tf.Session().run(g_forward)
+    tf_backward = tf.Session().run(g_backward)
 
+    assert np.isclose(np_forward, tf_forward).all()
+    print('np_backward', np_backward)
+    print('tf_backward', tf_backward)
+    assert np.isclose(np_backward, tf_backward).all()
     print('np_posterior', np_posterior)
     print('tf_posterior', tf_posterior)
     assert np.isclose(np_posterior, tf_posterior).all()
-
 
 def test_lik():
     yin = np.array([0, 0.25, 0.5, 0.75, 1])
