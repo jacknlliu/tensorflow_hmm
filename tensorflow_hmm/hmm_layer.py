@@ -14,7 +14,7 @@ class HMMLayer(Layer):
         for i in range(states):
             self.P[i, i] = 0.99
 
-        self.hmm = HMMTensorflow(self.P, length=length)
+        self.hmm = HMMTensorflow(self.P)
 
         super(HMMLayer, self).__init__()
 
