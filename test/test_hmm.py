@@ -220,19 +220,13 @@ def test_hmm_tf_viterbi_decode(hmm_tf_latch, hmm_latch):
     ]
 
     for y in ys:
-        print(y)
-
         tf_s_graph, tf_scores_graph = hmm_tf_latch.viterbi_decode(y)
-        tf_s = tf.Session().run(tf_s_graph)
-        tf_scores = [tf_scores_graph[0]]
-        tf_scores.extend([tf.Session().run(g) for g in tf_scores_graph[1:]])
-        print(np.array(tf_scores))
+        tf_s, tf_scores = tf.Session().run([tf_s_graph, tf_scores_graph])
 
         np_s, np_scores = hmm_latch.viterbi_decode(y)
-        print(np_scores)
 
         assert (tf_s == np_s).all()
-        print()
+        assert (tf_scores == np_scores).all()
 
 
 def test_hmm_viterbi_decode_batched(hmm_latch):
@@ -263,40 +257,32 @@ def test_hmm_viterbi_decode_batched(hmm_latch):
 
 
 def test_hmm_tf_viterbi_decode_batched(hmm_tf_latch, hmm_latch):
-    ys_T2 = [
+    ys_T2_batch = np.asarray([
         lik(np.array([0, 0])),
         lik(np.array([0, 1])),
         lik(np.array([1, 1])),
-    ]
-    ys_T5 = [
+    ], dtype=np.float32)
+
+    ys_T5_batch = np.asarray([
         lik([0, 0.25, 0.5, 0.75, 1]),
         lik([0, 0.65, 0.5, 0.95, .1]),
-    ]
+        lik([0, 0.25, 0.5, 0.75, 1]),
+    ], dtype=np.float32)
 
-    ys_T2_batch = np.asarray(ys_T2)
-    ys_T5_batch = np.asarray(ys_T5)
+    for y in (ys_T5_batch, ys_T2_batch):
+        np_res_s, np_res_scores = hmm_latch.viterbi_decode_batched(y)
 
-    np_res_s, np_res_scores = hmm_latch.viterbi_decode_batched(ys_T2_batch)
+        y_variable = tf.placeholder(tf.float32, shape=(None, y.shape[1], y.shape[2]))
+        tf_s_graph, tf_scores_graph = hmm_tf_latch.viterbi_decode_batched(y_variable)
+        init_op = tf.global_variables_initializer()
+        with tf.Session() as session:
+            session.run(init_op)
 
-    tf_s_graph, tf_scores_graph = hmm_tf_latch.viterbi_decode_batched(ys_T2_batch)
-    tf_s = tf.Session().run(tf_s_graph)
-    tf_scores = [tf_scores_graph[0]]
-    tf_scores.extend([tf.Session().run(g) for g in tf_scores_graph[1:]])
-    print(np.array(tf_scores))
+            tf_s = session.run(tf_s_graph, {y_variable: y})
+            tf_scores = session.run(tf_scores_graph, {y_variable: y})
 
-    assert np.all(np.asarray(tf_s).T == np_res_s)
-    assert np.all(np.rollaxis(np.asarray(tf_scores), 1, 0) == np_res_scores)
-
-    np_res_s, np_res_scores = hmm_latch.viterbi_decode_batched(ys_T5_batch)
-
-    tf_s_graph, tf_scores_graph = hmm_tf_latch.viterbi_decode_batched(ys_T5_batch)
-    tf_s = tf.Session().run(tf_s_graph)
-    tf_scores = [tf_scores_graph[0]]
-    tf_scores.extend([tf.Session().run(g) for g in tf_scores_graph[1:]])
-    print(np.array(tf_scores))
-
-    assert np.all(np.asarray(tf_s).T == np_res_s)
-    assert np.all(np.rollaxis(np.asarray(tf_scores), 1, 0) == np_res_scores)
+        np.testing.assert_allclose(tf_s, np_res_s)
+        np.testing.assert_allclose(tf_scores, np_res_scores)
 
 
 def test_hmm_tf_viterbi_decode_wrong_shape(hmm_tf_latch, hmm_latch):

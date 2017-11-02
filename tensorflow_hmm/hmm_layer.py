@@ -2,8 +2,10 @@ from keras.layers import Lambda, Activation
 from keras import backend as K
 from keras.engine.topology import Layer
 import numpy as np
+import tensorflow as tf
 
 from tensorflow_hmm import HMMTensorflow
+
 
 class HMMLayer(Layer):
     def __init__(self, states, length=None):
@@ -28,8 +30,12 @@ class HMMLayer(Layer):
         # todo: only optionally apply sigmoid
         # todo: apply viterbi during inference
         x = Activation(K.sigmoid)(x)
-        x = Lambda(lambda x: self.hmm.forward_backward(x)[0])(x)
-        return x
+
+        return K.in_train_phase(
+            Lambda(lambda x: self.hmm.forward_backward(x)[0])(x),
+            # Lambda(lambda x: self.hmm.viterbi_decode_batched(x, onehot=True)[0])(x),
+            x,
+        )
 
     def compute_output_shape(self, input_shape):
         return input_shape

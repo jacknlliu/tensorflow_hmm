@@ -166,6 +166,23 @@ class HMMNumpy(HMM):
         return s, pathScores
 
 
+def tf_map(fn, arrays):
+    """
+    Apply fn to each of the values in each of the arrays.  Implemented in
+    native python would look like:
+
+        return map(fn, *arrays)
+
+    more explicitly:
+
+        output[i] = fn(arrays[0][i], arrays[1][i], ... arrays[-1][i])
+
+    This function assumes that all arrays have same leading dim.
+    """
+    indices = tf.range(tf.shape(arrays[0])[0])
+    out = tf.map_fn(lambda ii: fn(*[array[ii] for array in arrays]), indices, dtype=tf.int64)
+    return out
+
 class HMMTensorflow(HMM):
 
     def forward_backward(self, y):
@@ -315,9 +332,9 @@ class HMMTensorflow(HMM):
         for t in range(nT - 1, 0, -1):
             s[t - 1] = tf.gather(pathStates[t], s[t])
 
-        return s, pathScores
+        return s, tf.stack(pathScores, axis=0)
 
-    def viterbi_decode_batched(self, y):
+    def viterbi_decode_batched(self, y, onehot=False):
         """
         Runs viterbi decode on state probabilies y in batch mode
 
@@ -325,6 +342,9 @@ class HMMTensorflow(HMM):
         ---------
         y : np.array : shape (B, T, K) where T is number of timesteps and
             K is the number of states
+        onehot : boolean : if true, returns a onehot representation of the
+            most likely states, instead of integer indexes of the most likely
+            states.
 
         Returns
         -------
@@ -335,11 +355,11 @@ class HMMTensorflow(HMM):
             each value at (t, k) is the log likliehood score in state k at
             time t.  sum(pathScores[t, :]) will not necessary == 1
         """
-        y = np.asarray(y)
-        if y.ndim == 2:
-            y = y[np.newaxis, ...]
+        if len(y.shape) == 2:
+            # y = y[np.newaxis, ...]
+            y = tf.expand_dims(y, axis=0)
 
-        if y.ndim != 3:
+        if  len(y.shape) != 3:
             raise ValueError((
                 'y should be 3d of shape (nB, nT, {}).  Found {}'
             ).format(self.K, y.shape))
@@ -362,22 +382,27 @@ class HMMTensorflow(HMM):
 
         # initialize
         pathStates.append(None)
-        pathScores.append(self.logp0 + np.log(y[:, 0]))
+        pathScores.append(self.logp0 + tf.log(y[:, 0]))
 
         for t in range(0, nT-1):
-            yy = np.squeeze(y[:, t+1])
+            yy = tf.squeeze(y[:, t+1])
             # propagate forward
             tmpMat = self._viterbi_partial_forward_batched(pathScores[t])
 
             # the inferred state
             pathStates.append(tf.argmax(tmpMat, axis=1))
-            pathScores.append(tf.reduce_max(tmpMat, axis=1) + np.log(yy))
+            pathScores.append(tf.reduce_max(tmpMat, axis=1) + tf.log(yy))
 
         # now backtrack viterbi to find states
-        s = [0] * nT
+        s = [None] * nT
         s[-1] = tf.argmax(pathScores[-1], axis=1)
         for t in range(nT - 1, 0, -1):
-            indx = tf.stack([tf.range(nB, dtype=tf.int64), s[t]], axis=1)
-            s[t - 1] = tf.gather_nd(pathStates[t], indx)
+            s[t - 1] = tf_map(lambda p, i: p[i], [pathStates[t], s[t]])
+
+        s = tf.stack(s, axis=1)
+        pathScores = tf.stack(pathScores, axis=1)
+
+        if onehot:
+            s = tf.one_hot(s, depth=nC)
 
         return s, pathScores
