@@ -31,11 +31,19 @@ class HMMLayer(Layer):
         # todo: apply viterbi during inference
         x = Activation(K.sigmoid)(x)
 
-        return K.in_train_phase(
-            Lambda(lambda x: self.hmm.forward_backward(x)[0])(x),
-            # Lambda(lambda x: self.hmm.viterbi_decode_batched(x, onehot=True)[0])(x),
-            x,
-        )
+        # include this in the graph so that keras knows that the learning phase
+        # variable needs to be passed into tensorflows session run.
+        x = K.in_train_phase(x, x)
+
+        # using K.in_train_phase results in both if and else conditions being
+        # computed, which in this case is very expensive. instead, tf.cond
+        # is used. Even so, if and else conditions must be wrapped in a lambda
+        # to ensure that they are not computed unless that path is chosen.
+        return Lambda(lambda x: tf.cond(
+            K.learning_phase(),
+            lambda: self.hmm.forward_backward(x)[0],
+            lambda: self.hmm.viterbi_decode_batched(x, onehot=True)[0],
+        ))(x)
 
     def compute_output_shape(self, input_shape):
         return input_shape
