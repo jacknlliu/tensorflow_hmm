@@ -160,10 +160,28 @@ class HMMNumpy(HMM):
         s = np.zeros((nB, nT), dtype=np.int)
         s[:, -1] = np.argmax(pathScores[:, -1], axis=1)
         for t in range(nT - 1, 0, -1):
-            s[:, t - 1] = pathStates[:, t][range(nB), s[:, t]]
+            # s[:, t - 1] = pathStates[:, t][range(nB), s[:, t]]
+            s[:, t - 1] = np.choose(s[:, t], pathStates[:, t].T)
 
         return s, pathScores
 
+
+def tf_map(fn, arrays):
+    """
+    Apply fn to each of the values in each of the arrays.  Implemented in
+    native python would look like:
+
+        return map(fn, *arrays)
+
+    more explicitly:
+
+        output[i] = fn(arrays[0][i], arrays[1][i], ... arrays[-1][i])
+
+    This function assumes that all arrays have same leading dim.
+    """
+    indices = tf.range(tf.shape(arrays[0])[0])
+    out = tf.map_fn(lambda ii: fn(*[array[ii] for array in arrays]), indices, dtype=tf.int64)
+    return out
 
 class HMMTensorflow(HMM):
 
@@ -257,9 +275,6 @@ class HMMTensorflow(HMM):
         )
         return expanded_scores + self.logP
 
-    def viterbi_decode_batched(self, y):
-        pass
-
     def viterbi_decode(self, y):
         """
         Runs viterbi decode on state probabilies y.
@@ -316,5 +331,78 @@ class HMMTensorflow(HMM):
         s[-1] = tf.argmax(pathScores[-1], 0)
         for t in range(nT - 1, 0, -1):
             s[t - 1] = tf.gather(pathStates[t], s[t])
+
+        return s, tf.stack(pathScores, axis=0)
+
+    def viterbi_decode_batched(self, y, onehot=False):
+        """
+        Runs viterbi decode on state probabilies y in batch mode
+
+        Arguments
+        ---------
+        y : np.array : shape (B, T, K) where T is number of timesteps and
+            K is the number of states
+        onehot : boolean : if true, returns a onehot representation of the
+            most likely states, instead of integer indexes of the most likely
+            states.
+
+        Returns
+        -------
+        (s, pathScores)
+        s : list of length T of tensorflow ints : represents the most likely
+            state at each time step.
+        pathScores : list of length T of tensorflow tensor of length K
+            each value at (t, k) is the log likliehood score in state k at
+            time t.  sum(pathScores[t, :]) will not necessary == 1
+        """
+        if len(y.shape) == 2:
+            # y = y[np.newaxis, ...]
+            y = tf.expand_dims(y, axis=0)
+
+        if  len(y.shape) != 3:
+            raise ValueError((
+                'y should be 3d of shape (nB, nT, {}).  Found {}'
+            ).format(self.K, y.shape))
+
+        nB, nT, nC = y.shape
+
+        if nC != self.K:
+            raise ValueError((
+                'y has an invalid shape.  first dimension is time and second '
+                'is K.  Expected K for this model is {}, found {}.'
+            ).format(self.K, nC))
+
+        # pathStates and pathScores will be of type tf.Tensor.  They
+        # are lists since tensorflow doesn't allow indexing, and the
+        # list and order are only really necessary to build the unrolled
+        # graph.  We never do any computation across all of time at once. The
+        # indexing into these list has the dimension of time.
+        pathStates = []
+        pathScores = []
+
+        # initialize
+        pathStates.append(None)
+        pathScores.append(self.logp0 + tf.log(y[:, 0]))
+
+        for t in range(0, nT-1):
+            yy = tf.squeeze(y[:, t+1])
+            # propagate forward
+            tmpMat = self._viterbi_partial_forward_batched(pathScores[t])
+
+            # the inferred state
+            pathStates.append(tf.argmax(tmpMat, axis=1))
+            pathScores.append(tf.reduce_max(tmpMat, axis=1) + tf.log(yy))
+
+        # now backtrack viterbi to find states
+        s = [None] * nT
+        s[-1] = tf.argmax(pathScores[-1], axis=1)
+        for t in range(nT - 1, 0, -1):
+            s[t - 1] = tf_map(lambda p, i: p[i], [pathStates[t], s[t]])
+
+        s = tf.stack(s, axis=1)
+        pathScores = tf.stack(pathScores, axis=1)
+
+        if onehot:
+            s = tf.one_hot(s, depth=nC)
 
         return s, pathScores
