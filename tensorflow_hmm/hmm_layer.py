@@ -47,7 +47,7 @@ class HMMLayer(Layer):
                 lambda: self.hmm.viterbi_decode_batched(x, onehot=True)[0],
             ))(x)
         else:
-            return Lambda(lambda x: self.hmm.forward_backward(x)[0])            
+            return Lambda(lambda x: self.hmm.forward_backward(x)[0])(x)            
 
     def compute_output_shape(self, input_shape):
         return input_shape
