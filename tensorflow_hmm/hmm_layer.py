@@ -8,7 +8,7 @@ from tensorflow_hmm import HMMTensorflow
 
 
 class HMMLayer(Layer):
-    def __init__(self, states, length=None, viterbi_inference=True):
+    def __init__(self, states, length=None, viterbi_inference=True, **kwargs):
         # todo: perhaps states should just be inferred by the input shape
         # todo: create a few utility functions for generating transition matrices
         self.viterbi_inference = viterbi_inference
@@ -19,7 +19,7 @@ class HMMLayer(Layer):
 
         self.hmm = HMMTensorflow(self.P)
 
-        super(HMMLayer, self).__init__()
+        super(HMMLayer, self).__init__(**kwargs)
 
     def build(self, input_shape):
         if len(input_shape) != 3:
@@ -47,7 +47,7 @@ class HMMLayer(Layer):
                 lambda: self.hmm.viterbi_decode_batched(x, onehot=True)[0],
             ))(x)
         else:
-            return Lambda(lambda x: self.hmm.forward_backward(x)[0])(x)            
+            return Lambda(lambda x: self.hmm.forward_backward(x)[0])(x)
 
     def compute_output_shape(self, input_shape):
         return input_shape
