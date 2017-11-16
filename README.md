@@ -5,7 +5,7 @@ Tensorflow and numpy implementations of the HMM viterbi and forward/backward alg
 
 See [Keras example](https://github.com/dwiel/tensorflow_hmm/blob/master/tensorflow_hmm/hmm_layer.py) for an example of how to use the Keras HMMLayer.
 
-See test_hmm.py for usage examples.  Here is an excerpt of the documentation from hmm.py for reference for now.
+See [test_hmm.py](https://github.com/dwiel/tensorflow_hmm/blob/master/test/test_hmm.py) for usage examples.  Here is an excerpt of the documentation from hmm.py for reference for now.
 
 See also viterbi_wikipedia_example.py which replicates the viterbi example on wikipedia.
 
