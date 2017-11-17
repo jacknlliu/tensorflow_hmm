@@ -44,8 +44,7 @@ def main():
     tf_s = tf.Session().run(tf_s_graph)
     print("Most likely States: ", [obs[s] for s in tf_s])
 
-    tf_scores = [tf_scores_graph[0]]
-    tf_scores.extend([tf.Session().run(g) for g in tf_scores_graph[1:]])
+    tf_scores = tf.Session().run(tf_scores_graph)
     pathScores = np.array(np.exp(tf_scores))
     dptable(pathScores, pathScores, states)
 
