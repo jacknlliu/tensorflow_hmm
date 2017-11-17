@@ -10,7 +10,7 @@ import tensorflow as tf
 import numpy as np
 
 
-from hmm import HMMNumpy, HMMTensorflow
+from tensorflow_hmm import HMMNumpy, HMMTensorflow
 
 
 def dptable(V, pathScores, states):
