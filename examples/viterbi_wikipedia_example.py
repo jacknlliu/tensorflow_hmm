@@ -40,7 +40,7 @@ def main():
     tf_model = HMMTensorflow(trans, p0)
 
     y = emi[obs_seq]
-    tf_s_graph, tf_scores_graph = tf_model.viterbi_decode(y, len(y))
+    tf_s_graph, tf_scores_graph = tf_model.viterbi_decode(y)
     tf_s = tf.Session().run(tf_s_graph)
     print("Most likely States: ", [obs[s] for s in tf_s])
 
