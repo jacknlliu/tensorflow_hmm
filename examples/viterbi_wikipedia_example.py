@@ -10,7 +10,7 @@ import tensorflow as tf
 import numpy as np
 
 
-from hmm import HMMNumpy, HMMTensorflow
+from tensorflow_hmm import HMMNumpy, HMMTensorflow
 
 
 def dptable(V, pathScores, states):
@@ -40,12 +40,11 @@ def main():
     tf_model = HMMTensorflow(trans, p0)
 
     y = emi[obs_seq]
-    tf_s_graph, tf_scores_graph = tf_model.viterbi_decode(y, len(y))
+    tf_s_graph, tf_scores_graph = tf_model.viterbi_decode(y)
     tf_s = tf.Session().run(tf_s_graph)
     print("Most likely States: ", [obs[s] for s in tf_s])
 
-    tf_scores = [tf_scores_graph[0]]
-    tf_scores.extend([tf.Session().run(g) for g in tf_scores_graph[1:]])
+    tf_scores = tf.Session().run(tf_scores_graph)
     pathScores = np.array(np.exp(tf_scores))
     dptable(pathScores, pathScores, states)
 
